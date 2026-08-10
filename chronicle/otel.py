@@ -13,6 +13,10 @@ Call it inside the ``record`` block (so it attaches to the recording session), o
 ``session=`` explicitly. Requires the OpenTelemetry SDK and OpenInference conventions:
 ``pip install agent-chronicle[phoenix]``. Nothing here is imported by ``import chronicle``,
 so the base install needs neither package.
+
+Spans start when the Chronicle nest stack opens (``start_span``), so children can parent
+to an already-active OTel span — matching OTel Context semantics even though the
+Envelope is written after the boundary body returns.
 """
 
 from __future__ import annotations
@@ -95,6 +99,8 @@ def envelope_span_attributes(envelope: Envelope) -> dict[str, Any]:
             attributes[S.LLM_TOKEN_COUNT_COMPLETION] = int(completion)
     if envelope.boundary_kind == "tool":
         attributes[S.TOOL_NAME] = envelope.node_id
+    for key, value in (envelope.dims or {}).items():
+        attributes[f"chronicle.dims.{key}"] = value
     return attributes
 
 
@@ -105,30 +111,57 @@ def instrument_otel(
 ) -> Callable[[], None]:
     """Emit one OpenTelemetry span per recorded boundary crossing.
 
-    Attaches to ``session`` (default: the active session) via its ``on_record`` hook.
-    Spans nest by the run's parent linkage and carry OpenInference attributes. Returns a
-    callable that removes the instrumentation.
+    Spans open on ``session.start_span`` (so nested work parents correctly) and close
+    on ``on_record`` once envelope attributes are known. Returns a callable that
+    removes the instrumentation.
     """
     trace = _require_trace()
     tracer = tracer or trace.get_tracer("chronicle")
     active = session or get_session()
-    spans: dict[str, Any] = {}  # envelope_id -> span, for parent linkage
+    spans: dict[str, Any] = {}  # envelope_id -> live OTel span
+    original_start = active.start_span
+    original_end = active.end_span
+    previous_on_record = active.on_record
+
+    def start_span() -> tuple[str, str | None]:
+        span_id, parent_id = original_start()
+        parent = spans.get(parent_id) if parent_id else None
+        context = trace.set_span_in_context(parent) if parent is not None else None
+        # Name is finalized in on_record once the boundary id is known.
+        spans[span_id] = tracer.start_span("chronicle.boundary", context=context)
+        return span_id, parent_id
+
+    def end_span() -> None:
+        original_end()
 
     def on_record(envelope: Envelope) -> None:
-        parent = spans.get(envelope.parent_envelope_id) if envelope.parent_envelope_id else None
-        context = trace.set_span_in_context(parent) if parent is not None else None
-        span = tracer.start_span(envelope.node_id, context=context)
+        span = spans.get(envelope.envelope_id)
+        if span is None:
+            # Caller recorded without start_span (legacy path): create + end now.
+            parent = spans.get(envelope.parent_envelope_id) if envelope.parent_envelope_id else None
+            context = trace.set_span_in_context(parent) if parent is not None else None
+            span = tracer.start_span(envelope.node_id, context=context)
+            spans[envelope.envelope_id] = span
+        else:
+            span.update_name(envelope.node_id)
         for key, value in envelope_span_attributes(envelope).items():
             span.set_attribute(key, value)
         if envelope.action_result.error:
             span.set_status(trace.Status(trace.StatusCode.ERROR, envelope.action_result.error))
         span.end()
-        spans[envelope.envelope_id] = span
+        if previous_on_record is not None:
+            previous_on_record(envelope)
 
+    active.start_span = start_span  # type: ignore[method-assign]
+    active.end_span = end_span  # type: ignore[method-assign]
     active.on_record = on_record
 
     def uninstrument() -> None:
+        if active.start_span is start_span:
+            active.start_span = original_start  # type: ignore[method-assign]
+        if active.end_span is end_span:
+            active.end_span = original_end  # type: ignore[method-assign]
         if active.on_record is on_record:
-            active.on_record = None
+            active.on_record = previous_on_record
 
     return uninstrument

@@ -35,13 +35,18 @@ Requires Python 3.10+. Nothing else to configure.
 ## Step 2: Mark your boundaries
 
 You mark boundaries because only you know which functions are the meaningful
-decision points. There are three ways; use whichever fits your code.
+**decision nodes**. Mark those — not the whole `run_agent` process. There are
+three ways; use whichever fits your code.
 
 | Your setup | Do you mark manually? | How |
 |---|---|---|
 | The **LLM call** (any framework) | No | `client = chronicle.wrap(OpenAI())` |
 | Your **tool / step functions** (plain Python) | Yes, one decorator each | `@boundary("refund", kind="tool")` |
-| **LangGraph** | No | `chronicle.instrument_langgraph(nodes)` |
+| **LangGraph** nodes | No | `chronicle.instrument_langgraph(nodes)` |
+| Top-level `run_agent(...)` | **No** | Leave orchestration unmarked |
+
+Nested LLM/tool calls inside a graph-node boundary parent to that node
+automatically (OTel-style `parent_span_id`).
 
 **a) The LLM call: wrap the client where you create it.** No decorators:
 
@@ -127,19 +132,26 @@ one crossing plus context; it does not capture the inside of your function.
 
 ## Step 3: Record a run
 
-Wrap the run you want to capture:
+Wrap the run you want to capture. Pass product ids as flat `dims` when you have
+them (one trace ≈ one message turn; Chronicle does not own chat history):
 
 ```python
 with chronicle.record(
     "incident-001",
     store=".chronicle/runs/incident.jsonl",        # raw log (optional)
     export="fixtures/traces/incident-001/",         # the committed fixture
+    dims={
+        "session_id": "sess_abc",
+        "message_id": "msg_042",
+    },
 ):
     run_agent(...)                                   # runs normally, and is recorded
 ```
 
 - `store=` writes the raw run as it happens (survives a crash). Optional.
 - `export=` writes the trace you keep and commit. This is what makes a test.
+- `dims=` are copied onto every envelope so a dashboard can resolve
+  session/message → trace later.
 
 ---
 

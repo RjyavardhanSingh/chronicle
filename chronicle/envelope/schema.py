@@ -95,6 +95,11 @@ class Envelope(BaseModel):
 
     Every envelope captures contextual metadata, input state, and action/result
     at the intersection of agent nodes — the "flight data" of the agent.
+
+    OTel mapping: ``trace_id`` is the Trace; ``envelope_id`` is the Span id;
+    ``parent_envelope_id`` is ``parent_span_id``. ``dims`` are flat string
+    attributes (trace-level dims are copied onto every span at record time;
+    envelope-level dims are span-specific).
     """
 
     schema_version: str = "1.0"
@@ -105,14 +110,29 @@ class Envelope(BaseModel):
     parent_envelope_id: str | None = None
     sequence: int = 0
     invocation_index: int = 1
+    # End time (when the envelope was written). Prefer ``started_at`` for span start.
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Span start (OTel). None on pre-nest fixtures; waterfall falls back to timestamp.
+    started_at: datetime | None = None
     metadata: ContextMetadata
     input_state: InputState
     action_result: ActionResult
+    # Flat string→string attributes (OTel-style). Missing on pre-0.4 fixtures.
+    dims: dict[str, str] = Field(default_factory=dict)
 
     @property
     def boundary_id(self) -> str:
         return self.node_id
+
+    @property
+    def span_id(self) -> str:
+        """OTel alias for ``envelope_id``."""
+        return self.envelope_id
+
+    @property
+    def parent_span_id(self) -> str | None:
+        """OTel alias for ``parent_envelope_id``."""
+        return self.parent_envelope_id
 
     @field_validator("timestamp", mode="before")
     @classmethod

@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "envelope_id": "ec8ab837-8412-45fd-b4e9-992e82135beb",
+  "trace_id": "trace-parent-calls-subagent-twice",
+  "node_id": "llm",
+  "boundary_kind": "llm",
+  "parent_envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
+  "sequence": 4,
+  "invocation_index": 2,
+  "timestamp": "2026-08-10T15:22:50.983491Z",
+  "started_at": "2026-08-10T15:22:50.943009Z",
+  "metadata": {
+    "model_version": "stub-researcher",
+    "sampling_params": {
+      "temperature": null,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "extra": {}
+    },
+    "build_id": "dev-local",
+    "tool_schemas": [],
+    "framework": "chronicle.boundary",
+    "node_id": "llm",
+    "trace_id": "trace-parent-calls-subagent-twice",
+    "extra": {}
+  },
+  "input_state": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "risks"
+      }
+    ],
+    "system_prompt": null,
+    "rag_chunks": [],
+    "graph_state": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "risks"
+        }
+      ],
+      "model": "stub-researcher"
+    }
+  },
+  "action_result": {
+    "tool_calls": [
+      {
+        "id": "call_1",
+        "name": "web_search",
+        "arguments": {
+          "q": "risks"
+        }
+      }
+    ],
+    "completion": null,
+    "finish_reason": "tool_calls",
+    "token_usage": {},
+    "raw_response": null,
+    "error": null,
+    "error_type": null
+  },
+  "dims": {
+    "session_id": "sess_subagent_x2",
+    "message_id": "msg_042",
+    "user_id": "dev",
+    "scenario": "parent_calls_subagent_twice",
+    "model_version": "stub-researcher",
+    "boundary_kind": "llm",
+    "node_id": "llm"
+  }
+}

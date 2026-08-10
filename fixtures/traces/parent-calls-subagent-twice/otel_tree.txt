@@ -1,0 +1,12 @@
+Trace: trace-parent-calls-subagent-twice
+  resource/dims: message_id=msg_042 scenario=parent_calls_subagent_twice session_id=sess_subagent_x2 user_id=dev
+
+└─ orchestrator#1 (custom)  span=0c707775 parent=—
+   ├─ researcher#1 (custom)  span=5feec2ff parent=0c707775
+   │  ├─ llm#1 (llm)  span=fc9038f7 parent=5feec2ff
+   │  │  attrs: model_version=stub-researcher
+   │  └─ web_search#1 (tool)  span=694a02ce parent=5feec2ff
+   └─ researcher#2 (custom)  span=26db5a61 parent=0c707775
+      ├─ llm#2 (llm)  span=ec8ab837 parent=26db5a61
+      │  attrs: model_version=stub-researcher
+      └─ web_search#2 (tool)  span=745360a0 parent=26db5a61
