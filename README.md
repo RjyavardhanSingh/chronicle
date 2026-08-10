@@ -457,8 +457,9 @@ with chronicle.record("run-1") as session:
     run_agent(...)
 ```
 
-Call it inside the `record` block, or pass `session=`. Needs the OTel extra
-(`pip install agent-chronicle[phoenix]`); the base install imports no OpenTelemetry.
+Call it inside the `record` block, or pass `session=`. Needs the OTel SDK
+(`pip install agent-chronicle[otel]`, or `[phoenix]` if you also want the Phoenix
+collector/UI). The base install imports no OpenTelemetry.
 
 </details>
 

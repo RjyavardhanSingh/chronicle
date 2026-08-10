@@ -18,7 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `parent_envelope_id` to the active parent (not the last finished envelope).
   Optional debug helpers: `ExecutionGraph.to_otel_tree()` /
   `to_otel_waterfall()` (product UI stays shared with TokenOps / the plane).
-- **`started_at`** on envelopes for span start time (end remains `timestamp`).
+- **Dev / CI extras**: `[dev]` installs `[otel]` (OpenTelemetry + OpenInference)
+  instead of full `[phoenix]`, so `arize-phoenix` is not pulled into pytest
+  collection (its pytest plugin has been crashing CI on Python 3.11). Use
+  `pip install agent-chronicle[phoenix]` when you want the Phoenix collector/UI.
 - **`CHRONICLE_ENABLED`**: set to `0` / `false` / `off` / `no` to turn off LIVE
   recording. `@boundary`, `wrap`, `wrap_llm`, `record()`, and `EnvelopeRecorder`
   become passthrough so an agent can be run with and without Chronicle. Replay is
