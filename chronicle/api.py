@@ -28,6 +28,7 @@ def record(
     redactors: list[Callable[[str], str]] | None = None,
     export: str | Path | None = None,
     retain_envelopes: bool = True,
+    dims: dict[str, str] | None = None,
 ) -> Iterator[ChronicleSession]:
     """Record a run in one block.
 
@@ -39,6 +40,7 @@ def record(
             "incident-001",
             store=".chronicle/runs/incident.jsonl",
             export="fixtures/traces/incident-001/",
+            dims={"session_id": "sess_abc", "user_id": "u1"},
         ) as session:
             run_agent(...)
 
@@ -48,6 +50,9 @@ def record(
 
     Set ``retain_envelopes=False`` when you only need the store write (skips the
     in-session list; ``export_trace`` will be empty).
+
+    ``dims`` are trace-level flat string attributes copied onto every recorded
+    envelope (OTel-style resource/span attributes).
     """
     session = reset_session()
     if not is_enabled():
@@ -65,7 +70,7 @@ def record(
     if redactors is not None:
         session.redactors = redactors
     session.retain_envelopes = retain_envelopes
-    session.begin_trace(trace_id)
+    session.begin_trace(trace_id, dims=dims)
     try:
         yield session
     finally:

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "envelope_id": "694a02ce-574b-4435-acb6-d82ced786aa6",
+  "trace_id": "trace-parent-calls-subagent-twice",
+  "node_id": "web_search",
+  "boundary_kind": "tool",
+  "parent_envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
+  "sequence": 2,
+  "invocation_index": 1,
+  "timestamp": "2026-08-10T15:22:50.926832Z",
+  "started_at": "2026-08-10T15:22:50.895131Z",
+  "metadata": {
+    "model_version": "unknown",
+    "sampling_params": {
+      "temperature": null,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "extra": {}
+    },
+    "build_id": "dev-local",
+    "tool_schemas": [],
+    "framework": "chronicle.boundary",
+    "node_id": "web_search",
+    "trace_id": "trace-parent-calls-subagent-twice",
+    "extra": {}
+  },
+  "input_state": {
+    "messages": [],
+    "system_prompt": null,
+    "rag_chunks": [],
+    "graph_state": {
+      "q": "pricing"
+    }
+  },
+  "action_result": {
+    "tool_calls": [],
+    "completion": "{'results': ['doc about pricing'], 'q': 'pricing'}",
+    "finish_reason": null,
+    "token_usage": {},
+    "raw_response": {
+      "results": [
+        "doc about pricing"
+      ],
+      "q": "pricing"
+    },
+    "error": null,
+    "error_type": null
+  },
+  "dims": {
+    "session_id": "sess_subagent_x2",
+    "message_id": "msg_042",
+    "user_id": "dev",
+    "scenario": "parent_calls_subagent_twice",
+    "boundary_kind": "tool",
+    "node_id": "web_search"
+  }
+}

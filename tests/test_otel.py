@@ -48,6 +48,21 @@ def _run_agent():
     return finalize(state, tool_result)
 
 
+def _run_nested_agent():
+    """True call-stack nesting: tool runs inside the outer agent boundary."""
+
+    @boundary("refund", kind="tool")
+    def refund(order_id, amount_cents):
+        return {"status": "blocked", "blocked": True, "amount_cents": amount_cents}
+
+    @boundary("agent", kind="llm")
+    def agent(state):
+        tool_result = refund("o1", 999)
+        return {**state, "completion": "done", "blocked": tool_result["blocked"]}
+
+    return agent({"messages": []})
+
+
 def test_one_span_per_crossing_with_openinference_attrs():
     tracer, exporter = _tracer_and_exporter()
     with chronicle.record("t-otel"):
@@ -69,12 +84,24 @@ def test_spans_nest_by_parent_linkage():
     tracer, exporter = _tracer_and_exporter()
     with chronicle.record("t-nest"):
         chronicle.instrument_otel(tracer=tracer)
+        _run_nested_agent()
+
+    finished = exporter.get_finished_spans()
+    # Child (refund) finishes before parent (agent) — export order is end order.
+    by_name = {s.name: s for s in finished}
+    assert by_name["agent"].parent is None
+    assert by_name["refund"].parent is not None
+    assert by_name["refund"].parent.span_id == by_name["agent"].context.span_id
+
+
+def test_sequential_top_level_spans_are_siblings():
+    tracer, exporter = _tracer_and_exporter()
+    with chronicle.record("t-sib"):
+        chronicle.instrument_otel(tracer=tracer)
         _run_agent()
 
-    agent1, refund, agent2 = exporter.get_finished_spans()
-    assert agent1.parent is None
-    assert refund.parent.span_id == agent1.context.span_id
-    assert agent2.parent.span_id == refund.context.span_id
+    spans = exporter.get_finished_spans()
+    assert all(s.parent is None for s in spans)
 
 
 def test_error_boundary_sets_error_status():

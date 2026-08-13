@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Trace/envelope `dims`**: flat `dict[str, str]` attributes on every envelope.
+  Pass trace-level dims via `chronicle.record(..., dims={...})`; they are copied
+  onto each span. Envelope-specific dims (e.g. `model_version`) merge on top.
+  File storage only for now (JSONL / fixture export). Lookup by dims belongs on
+  the shared control plane / dashboard, not in this library.
+- **OTel-style nest parents**: boundaries open a span on the Context stack before
+  the body runs (`start_span` / `end_span`), so nested calls set
+  `parent_envelope_id` to the active parent (not the last finished envelope).
+  Optional debug helpers: `ExecutionGraph.to_otel_tree()` /
+  `to_otel_waterfall()` (product UI stays shared with TokenOps / the plane).
+- **Dev / CI extras**: `[dev]` installs `[otel]` (OpenTelemetry + OpenInference)
+  instead of full `[phoenix]`, so `arize-phoenix` is not pulled into pytest
+  collection (its pytest plugin has been crashing CI on Python 3.11). Use
+  `pip install agent-chronicle[phoenix]` when you want the Phoenix collector/UI.
 - **`CHRONICLE_ENABLED`**: set to `0` / `false` / `off` / `no` to turn off LIVE
   recording. `@boundary`, `wrap`, `wrap_llm`, `record()`, and `EnvelopeRecorder`
   become passthrough so an agent can be run with and without Chronicle. Replay is

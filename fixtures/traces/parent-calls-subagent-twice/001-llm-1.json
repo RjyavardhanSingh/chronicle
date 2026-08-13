@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "envelope_id": "fc9038f7-b52e-4c47-8aaf-afdf4761e3fb",
+  "trace_id": "trace-parent-calls-subagent-twice",
+  "node_id": "llm",
+  "boundary_kind": "llm",
+  "parent_envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
+  "sequence": 1,
+  "invocation_index": 1,
+  "timestamp": "2026-08-10T15:22:50.894808Z",
+  "started_at": "2026-08-10T15:22:50.852504Z",
+  "metadata": {
+    "model_version": "stub-researcher",
+    "sampling_params": {
+      "temperature": null,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "extra": {}
+    },
+    "build_id": "dev-local",
+    "tool_schemas": [],
+    "framework": "chronicle.boundary",
+    "node_id": "llm",
+    "trace_id": "trace-parent-calls-subagent-twice",
+    "extra": {}
+  },
+  "input_state": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "pricing"
+      }
+    ],
+    "system_prompt": null,
+    "rag_chunks": [],
+    "graph_state": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "pricing"
+        }
+      ],
+      "model": "stub-researcher"
+    }
+  },
+  "action_result": {
+    "tool_calls": [
+      {
+        "id": "call_1",
+        "name": "web_search",
+        "arguments": {
+          "q": "pricing"
+        }
+      }
+    ],
+    "completion": null,
+    "finish_reason": "tool_calls",
+    "token_usage": {},
+    "raw_response": null,
+    "error": null,
+    "error_type": null
+  },
+  "dims": {
+    "session_id": "sess_subagent_x2",
+    "message_id": "msg_042",
+    "user_id": "dev",
+    "scenario": "parent_calls_subagent_twice",
+    "model_version": "stub-researcher",
+    "boundary_kind": "llm",
+    "node_id": "llm"
+  }
+}

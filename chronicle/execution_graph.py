@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from chronicle.envelope.schema import Envelope
@@ -99,6 +100,8 @@ class ExecutionGraph:
 
         graph_json = {
             "trace_id": self.trace_id,
+            "dims": self.dims,
+            "spans": node_entries,  # OTel name; ``nodes`` kept for back-compat
             "nodes": node_entries,
             "edges": edges,
             "roots": self.root_ids,
@@ -122,6 +125,19 @@ class ExecutionGraph:
             raise KeyError(f"No envelope for {boundary_id} invocation {invocation_index}")
         return matches[0]
 
+    @property
+    def dims(self) -> dict[str, str]:
+        """Trace-level dims: keys shared by every span (minus span-only stamps)."""
+        timelines = self.timeline()
+        if not timelines:
+            return {}
+        shared = dict(timelines[0].dims)
+        for env in timelines[1:]:
+            shared = {k: v for k, v in shared.items() if env.dims.get(k) == v}
+        for key in ("boundary_kind", "node_id", "model_version"):
+            shared.pop(key, None)
+        return shared
+
     def to_mermaid(self) -> str:
         lines = ["graph TD"]
         for node in self.timeline():
@@ -143,23 +159,149 @@ class ExecutionGraph:
         return "\n".join(lines)
 
     def to_ascii(self) -> str:
-        lines = [f"Trace: {self.trace_id}", ""]
-        for node in self.timeline():
-            indent = "  " if node.parent_envelope_id else ""
-            env = node
-            action = ""
-            if env.action_result.tool_calls:
-                tc = env.action_result.tool_calls[0]
-                action = f" → tool_call({tc.name})"
-            elif env.action_result.raw_response:
-                action = f" → {env.action_result.raw_response}"
-            elif env.action_result.completion:
-                action = f" → {env.action_result.completion[:50]}"
-            lines.append(
-                f"{indent}[{env.sequence}] {env.node_id}#{env.invocation_index}"
-                f" ({env.boundary_kind}){action}"
-            )
+        """OTel-style nested span tree (trace_id / span_id / parent_span_id)."""
+        return self.to_otel_tree()
+
+    def to_otel_tree(self) -> str:
+        """Render the run as an OpenTelemetry-style Trace → Spans tree."""
+        lines = [f"Trace: {self.trace_id}"]
+        trace_dims = self.dims
+        if trace_dims:
+            dim_str = " ".join(f"{k}={v}" for k, v in sorted(trace_dims.items()))
+            lines.append(f"  resource/dims: {dim_str}")
+        lines.append("")
+
+        children: dict[str | None, list[Envelope]] = {}
+        for env in self.timeline():
+            children.setdefault(env.parent_envelope_id, []).append(env)
+
+        def walk(parent_key: str | None, prefix: str) -> None:
+            siblings = children.get(parent_key, [])
+            for i, env in enumerate(siblings):
+                last = i == len(siblings) - 1
+                branch = "└─" if last else "├─"
+                child_prefix = f"{prefix}{'   ' if last else '│  '}"
+                span_short = env.span_id[:8]
+                parent_short = env.parent_span_id[:8] if env.parent_span_id else "—"
+                lines.append(
+                    f"{prefix}{branch} {env.node_id}#{env.invocation_index} "
+                    f"({env.boundary_kind})  span={span_short} parent={parent_short}"
+                )
+                span_dims = {
+                    k: v
+                    for k, v in env.dims.items()
+                    if k not in trace_dims and k not in ("boundary_kind", "node_id")
+                }
+                if span_dims:
+                    dim_str = " ".join(f"{k}={v}" for k, v in sorted(span_dims.items()))
+                    lines.append(f"{child_prefix}attrs: {dim_str}")
+                walk(env.envelope_id, child_prefix)
+
+        if None in children or not self.timeline():
+            walk(None, "")
+        else:
+            # Orphan parents: flat fallback.
+            for env in self.timeline():
+                parent_short = (env.parent_span_id or "—")[:8]
+                lines.append(
+                    f"- {env.node_id}#{env.invocation_index} ({env.boundary_kind})  "
+                    f"span={env.span_id[:8]} parent={parent_short}"
+                )
+
         return "\n".join(lines)
+
+    def to_otel_waterfall(self, *, width: int = 48) -> str:
+        """Render an OpenTelemetry-style timeline waterfall (nested bars over time).
+
+        Each row is a span; indentation follows parent→child. The bar covers
+        ``started_at`` → ``timestamp`` (end). Missing ``started_at`` falls back
+        to reconstructing from children / end time.
+        """
+        envelopes = self.timeline()
+        if not envelopes:
+            return f"Trace: {self.trace_id}\n(no spans)"
+
+        # Resolve [start, end] per span. Parent opens before children and closes after.
+        intervals: dict[str, tuple[datetime, datetime]] = {}
+        for env in envelopes:
+            end = env.timestamp
+            start = env.started_at or end
+            intervals[env.envelope_id] = (start, end)
+
+        # Expand parents to enclose children (OTel parent fully wraps nested work).
+        children: dict[str | None, list[Envelope]] = {}
+        for env in envelopes:
+            children.setdefault(env.parent_envelope_id, []).append(env)
+
+        def enclose(eid: str) -> tuple[datetime, datetime]:
+            start, end = intervals[eid]
+            for child in children.get(eid, []):
+                c_start, c_end = enclose(child.envelope_id)
+                if c_start < start:
+                    start = c_start
+                if c_end > end:
+                    end = c_end
+            intervals[eid] = (start, end)
+            return start, end
+
+        for root in children.get(None, []):
+            enclose(root.envelope_id)
+
+        t0 = min(s for s, _ in intervals.values())
+        t1 = max(e for _, e in intervals.values())
+        total_ms = max((t1 - t0).total_seconds() * 1000.0, 1.0)
+
+        def col(dt: datetime) -> int:
+            ms = (dt - t0).total_seconds() * 1000.0
+            return max(0, min(width - 1, int(round(ms / total_ms * (width - 1)))))
+
+        lines = [
+            f"Trace: {self.trace_id}",
+            f"  total: {total_ms:.1f}ms   [0ms ──► {total_ms:.1f}ms]",
+        ]
+        trace_dims = self.dims
+        if trace_dims:
+            dim_str = " ".join(f"{k}={v}" for k, v in sorted(trace_dims.items()))
+            lines.append(f"  resource/dims: {dim_str}")
+        lines.append("")
+        label_w = max(
+            (len(f"{e.node_id}#{e.invocation_index}") + depth * 2 for depth, e in
+             self._waterfall_rows(children)),
+            default=12,
+        )
+        label_w = min(max(label_w, 16), 28)
+
+        def render(parent_key: str | None, depth: int) -> None:
+            for env in children.get(parent_key, []):
+                start, end = intervals[env.envelope_id]
+                left = col(start)
+                right = col(end)
+                if right <= left:
+                    right = min(width, left + 1)
+                bar = " " * left + "█" * (right - left)
+                bar = bar.ljust(width)
+                dur_ms = (end - start).total_seconds() * 1000.0
+                name = f"{'  ' * depth}{env.node_id}#{env.invocation_index}"
+                lines.append(
+                    f"{name:<{label_w}} {bar}  {dur_ms:6.1f}ms  {env.boundary_kind}"
+                )
+                render(env.envelope_id, depth + 1)
+
+        render(None, 0)
+        # Time axis
+        lines.append(f"{'':<{label_w}} {'└' + '─' * (width - 2) + '┘'}")
+        lines.append(f"{'':<{label_w}} 0ms{' ' * (width - 10)}{total_ms:.0f}ms")
+        return "\n".join(lines)
+
+    def _waterfall_rows(
+        self, children: dict[str | None, list[Envelope]]
+    ):
+        def walk(parent_key: str | None, depth: int):
+            for env in children.get(parent_key, []):
+                yield depth, env
+                yield from walk(env.envelope_id, depth + 1)
+
+        yield from walk(None, 0)
 
     @property
     def initial_state(self) -> dict:

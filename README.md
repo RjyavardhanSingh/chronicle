@@ -30,15 +30,16 @@ walks you from install to a committed regression test.
 **[Why](#why-chronicle) · [Quick start](#quick-start) · [Cut-point replay](#cut-point-replay) · [Recording](#recording-entry-points) · [Verification](#verification-layers) · [Compare](#how-chronicle-compares) · [Demos](#demos) · [FAQ](#faq) · [Roadmap](#roadmap)**
 
 <details>
-<summary><b>Key terms</b> (boundary, Envelope, trace, fixture, stub, live, cut-point)</summary>
+<summary><b>Key terms</b> (boundary, Envelope, trace, dims, fixture, stub, live, cut-point)</summary>
 
 <br>
 
 | Term | What it means |
 |---|---|
-| **Boundary** | A decision point you mark: an LLM call, a tool call, or a routing choice. You choose which functions are boundaries. |
-| **Envelope** | The immutable record of one boundary crossing: its input, its output, and metadata. It records I/O, not the side effects inside the function. |
-| **Trace** | One whole run, as an ordered set of Envelopes. |
+| **Boundary** | A decision **node** you mark: an LLM call, a tool call, or a routing choice — not the whole agent process. Orchestration stays plain code. |
+| **Envelope** | The immutable record of one boundary crossing: its input, its output, and metadata. It records I/O, not the side effects inside the function. OTel: one **span**. |
+| **Trace** | One whole run (typically one message turn), as an ordered set of Envelopes sharing a `trace_id`. |
+| **Dims** | Flat `dict[str, str]` attributes on each envelope (e.g. `session_id`, `message_id`). Trace-level dims are passed into `record(...)` and copied onto every span. |
 | **Fixture** | A trace committed to git under `fixtures/traces/`. Your permanent, replayable incident. |
 | **Stub** | On replay, hand back a boundary's recorded output *without running its code*. |
 | **Live** | Run the boundary's real code (to record it, or, on replay, to run your new code). |
@@ -93,6 +94,7 @@ deterministic.
 | Input state | Assembled prompt, graph state, retrieved context chunks |
 | Action / result | Structured tool calls and model completion |
 | Graph linkage | `parent_envelope_id`, `sequence`, `invocation_index` for retries |
+| Dims | Flat `dict[str, str]` (trace-level via `record(..., dims=...)`, plus span attrs like `model_version`) |
 
 ## Install
 
@@ -122,18 +124,23 @@ client.chat.completions.create(model="gpt-4o", messages=[...])   # recorded
 > boundary (a real file delete, an API POST, a DB write) are **not** captured, so on
 > replay a stubbed boundary returns the recorded output without firing them again.
 
-**2. Or mark your own boundaries** with `@boundary`, for exact control over what counts
-as an LLM, tool, or routing decision:
+**2. Or mark your own boundaries** with `@boundary` on **decision nodes** (LLM,
+tool, router) — not on the full agent runner. Nested calls inside a node span
+parent to that node automatically (OTel-style `parent_span_id`):
 
 ```python
 from chronicle import boundary
 
-@boundary("agent", kind="llm")
-def agent_plan(state: dict) -> dict:
+@boundary("planner", kind="llm")
+def planner(task: str) -> dict:
     ...
 
 @boundary("delete_file", kind="tool")
 def delete_file(path: str, environment: str) -> dict:
+    ...
+
+def run_agent(task: str) -> dict:          # plain orchestration — no @boundary
+    plan = planner(task)
     ...
 ```
 
@@ -141,7 +148,8 @@ def delete_file(path: str, environment: str) -> dict:
 your function returns or raises. A bare `@boundary` records the call by argument name,
 so extractors are an optional way to trim payloads, never a requirement.
 
-**3. Record a run and freeze it as a committed fixture** in one block:
+**3. Record a run** (optional product dims for later lookup) **and freeze it as a
+committed fixture** in one block:
 
 ```python
 import chronicle
@@ -150,9 +158,28 @@ with chronicle.record(
     "incident-001",
     store=".chronicle/runs/incident.jsonl",   # raw run, gitignored
     export="fixtures/traces/incident-001/",   # the committed fixture you keep
+    dims={                                    # flat string attrs on every envelope
+        "session_id": "sess_abc",
+        "message_id": "msg_042",              # one trace ≈ one message turn
+        "user_id": "u1",
+    },
 ):
     run_agent(...)
 ```
+
+### Attribution (session / message)
+
+Chronicle does **not** own chat history or Session↔Message storage. Pass ids as
+`dims` so a control plane or dashboard can resolve feedback → trace later:
+
+| Scenario | Dims to pass |
+|---|---|
+| Multi-turn chat | Same `session_id`, new `message_id` (and new `trace_id`) per user turn |
+| Single-shot / S2S | `session_id` (and optional `caller_id` / `caller_type`) |
+
+One Chronicle **trace** is one agent run — typically one message turn. Nested LLM
+and tool envelopes under a graph node share that `trace_id` and parent to the
+active node span.
 
 ### Which entry point should I record with?
 
@@ -430,8 +457,9 @@ with chronicle.record("run-1") as session:
     run_agent(...)
 ```
 
-Call it inside the `record` block, or pass `session=`. Needs the OTel extra
-(`pip install agent-chronicle[phoenix]`); the base install imports no OpenTelemetry.
+Call it inside the `record` block, or pass `session=`. Needs the OTel SDK
+(`pip install agent-chronicle[otel]`, or `[phoenix]` if you also want the Phoenix
+collector/UI). The base install imports no OpenTelemetry.
 
 </details>
 
@@ -512,11 +540,25 @@ plugin, and a docs site). Shape priorities in
 <details>
 <summary><b>What counts as a boundary, and how many should I add?</b></summary>
 
-A boundary is any decision point you want to be able to freeze and replay: an LLM call,
-a tool or function call, or a routing choice. You do not need to wrap everything. Start
-with the calls you would actually assert on in a test: the model call that decides an
-action, and each tool that has a real effect (a write, a payment, a delete). A boundary
-you never stub or assert on just adds an envelope, so add them where a test would look.
+A boundary is any **decision node** you want to freeze and replay: an LLM call, a
+tool call, or a routing choice. Mark those nodes — not the whole `run_agent`
+process. Orchestration stays plain code; if a graph node calls an LLM and a tool
+while its span is open, those children parent under the node automatically.
+
+Start with the calls you would assert on in a test: the model call that decides an
+action, and each tool that has a real effect (a write, a payment, a delete). A
+boundary you never stub or assert on just adds an envelope, so add them where a
+test would look.
+</details>
+
+<details>
+<summary><b>How do I correlate a production session / message with a Chronicle trace?</b></summary>
+
+Pass flat string `dims` into `chronicle.record(...)`, e.g. `session_id` and
+`message_id`. They are copied onto every envelope in that run. One trace ≈ one
+message turn; multi-turn chats reuse `session_id` and mint a new `message_id` (and
+trace) per turn. Chronicle does not store chat history — your app or dashboard maps
+feedback to those ids, then to `trace_id`.
 </details>
 
 <details>

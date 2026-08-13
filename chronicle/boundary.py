@@ -210,15 +210,24 @@ def _record_call(
 ):
     input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
     call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    # Open the span before the body so nested boundaries parent here (OTel Context).
+    span_id, parent_id = session.start_span()
     try:
         try:
             result = fn(*args, **call_kwargs)
         except Exception as exc:
-            _record_failure(session, boundary_id, kind, input_state, exc)
+            _record_failure(
+                session, boundary_id, kind, input_state, exc,
+                envelope_id=span_id, parent_envelope_id=parent_id,
+            )
             raise
-        _record_success(session, boundary_id, kind, input_state, result, extract_result, extract_metadata)
+        _record_success(
+            session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+            envelope_id=span_id, parent_envelope_id=parent_id,
+        )
         return result
     finally:
+        session.end_span()
         _run_on_leave(session, boundary_id, kind, input_state, entered)
 
 
@@ -228,19 +237,32 @@ async def _record_call_async(
 ):
     input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
     call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    span_id, parent_id = session.start_span()
     try:
         try:
             result = await fn(*args, **call_kwargs)
         except Exception as exc:
-            _record_failure(session, boundary_id, kind, input_state, exc)
+            _record_failure(
+                session, boundary_id, kind, input_state, exc,
+                envelope_id=span_id, parent_envelope_id=parent_id,
+            )
             raise
-        _record_success(session, boundary_id, kind, input_state, result, extract_result, extract_metadata)
+        _record_success(
+            session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+            envelope_id=span_id, parent_envelope_id=parent_id,
+        )
         return result
     finally:
+        session.end_span()
         _run_on_leave(session, boundary_id, kind, input_state, entered)
 
 
-def _record_success(session, boundary_id, kind, input_state, result, extract_result, extract_metadata):
+def _record_success(
+    session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+    *,
+    envelope_id: str | None = None,
+    parent_envelope_id: str | None = None,
+):
     """Record the envelope, then notify observers. Never touches the return value."""
     recorded = extract_result(result) if extract_result else result
     action_result = result_to_action_result(recorded, kind)
@@ -248,19 +270,28 @@ def _record_success(session, boundary_id, kind, input_state, result, extract_res
     session.record_envelope(
         boundary_id, kind, input_state, action_result,
         model_version=model_version, sampling_params=sampling_params,
+        envelope_id=envelope_id, parent_envelope_id=parent_envelope_id,
     )
     if session.on_crossing is not None:
         session.on_crossing(boundary_id, kind, input_state, result)
 
 
-def _record_failure(session, boundary_id, kind, input_state, exc):
+def _record_failure(
+    session, boundary_id, kind, input_state, exc,
+    *,
+    envelope_id: str | None = None,
+    parent_envelope_id: str | None = None,
+):
     """Record a failed crossing so incidents that raise are still reproducible."""
     action_result = ActionResult(
         error=str(exc),
         error_type=type(exc).__name__,
         finish_reason="error",
     )
-    session.record_envelope(boundary_id, kind, input_state, action_result)
+    session.record_envelope(
+        boundary_id, kind, input_state, action_result,
+        envelope_id=envelope_id, parent_envelope_id=parent_envelope_id,
+    )
 
 
 def _call_metadata(result, kind, extract_metadata):
