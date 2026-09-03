@@ -191,7 +191,8 @@ same way, so nothing downstream changes.
 | An OpenAI- or Anthropic-style client | `chronicle.wrap(client)` |
 | A function you can edit | `@boundary("name", kind=...)` |
 | A model call that is a plain function you pass around | [`wrap_llm("name", fn)`](#recording-entry-points) |
-| LangGraph nodes | [`chronicle.instrument_langgraph(nodes)`](#recording-entry-points) |
+| A LangGraph `StateGraph` or compiled app | [`chronicle.instrument(graph)`](#recording-entry-points) |
+| A bare dict of LangGraph node functions | [`chronicle.instrument_langgraph(nodes)`](#recording-entry-points) |
 
 ## Cut-point replay
 
@@ -263,6 +264,36 @@ result = complete("gpt-4o", [{"role": "user", "content": "hi"}])
 
 It reads `messages` (and `model` / `provider` if present) from the arguments
 automatically. Pass `extract_input` only if the signature is unusual.
+
+</details>
+
+<details>
+<summary><b><code>instrument(graph)</code>: a whole LangGraph, nodes and routing</b></summary>
+
+<br>
+
+```python
+graph = StateGraph(State)
+graph.add_node("agent", agent_node)
+graph.add_conditional_edges("agent", route_fn, {"tools": "tools", END: END})
+
+app = chronicle.instrument(graph).compile()
+```
+
+One call instruments every node **and** every `add_conditional_edges` routing
+function. Routing functions become `kind="router"` boundaries, so *which branch was
+taken* is recorded and replays deterministically, not just each node's input and
+output. Static edges need no boundary: there is no decision to record.
+
+Works before or after `.compile()`. A `CompiledStateGraph` keeps a live reference to
+its builder, and node callables are mutated in place, so late instrumentation still
+reroutes an already-compiled graph. Sync and async nodes are both handled, including
+the async shim LangGraph generates for a sync-only node. Calling it twice wraps each
+node once.
+
+Needs `pip install agent-chronicle[langgraph]`. It touches only the public
+`StateGraph` builder attributes, never LangGraph's compiled Pregel internals.
+Runnable example: `examples/langgraph_demo/routing_demo.py`.
 
 </details>
 
@@ -529,8 +560,7 @@ tests/                     # unit + e2e
 
 Chronicle is early (0.x), and the Envelope schema may still change between minor
 versions. See [ROADMAP.md](https://github.com/theagentplane/chronicle/blob/main/ROADMAP.md)
-for what is planned (streaming capture, compiled-LangGraph auto-instrumentation, a pytest
-plugin, and a docs site). Shape priorities in
+for what is planned (streaming capture, a pytest plugin, and a docs site). Shape priorities in
 [Discussions](https://github.com/theagentplane/chronicle/discussions).
 
 ## FAQ
@@ -663,9 +693,10 @@ trace.
 <details>
 <summary><b>Does it work with LangGraph?</b></summary>
 
-Yes. `chronicle.instrument_langgraph(nodes)` wraps every node in one call, or decorate
-nodes with `@boundary`. Auto-instrumenting a compiled graph (capturing routing and edge
-decisions) is on the roadmap.
+Yes. `chronicle.instrument(graph)` takes a `StateGraph` or a compiled app and
+instruments every node plus every conditional-edge routing function, so which branch
+was taken is recorded and replays deterministically. For a bare dict of node functions
+use `chronicle.instrument_langgraph(nodes)`, or decorate nodes with `@boundary`.
 </details>
 
 <details>
