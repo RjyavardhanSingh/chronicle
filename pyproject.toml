@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-chronicle"
-version = "0.3.0"
+version = "0.4.0"
 description = "Record-and-replay for agent decision graphs: reproduce a prod agent failure as a committed regression test — and re-run your fix without live LLM calls."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -53,13 +53,18 @@ langgraph = [
     "langchain-core>=0.3",
     "openinference-instrumentation-langchain>=0.1",
 ]
-# OpenTelemetry + Phoenix tracing export (chronicle/instrumentation/openinference.py).
-phoenix = [
+# OpenTelemetry + OpenInference (chronicle.instrument_otel, tests). No Phoenix server.
+otel = [
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
     "opentelemetry-exporter-otlp>=1.20",
     "openinference-instrumentation>=0.1",
     "openinference-semantic-conventions>=0.1",
+]
+# Phoenix UI/collector on top of otel. Kept out of [dev]: recent arize-phoenix
+# releases register a pytest plugin that can crash collection (seen on 3.11).
+phoenix = [
+    "agent-chronicle[otel]",
     "arize-phoenix>=4",
 ]
 # Layer 2 LLM-as-judge (chronicle/judge/runner.py OpenAIJudgeClient).
@@ -70,7 +75,7 @@ dev = [
     "pytest>=8",
     "ruff==0.15.22",
     "build>=1.2",
-    "agent-chronicle[langgraph,phoenix,judge]",
+    "agent-chronicle[langgraph,otel,judge]",
 ]
 
 [project.urls]

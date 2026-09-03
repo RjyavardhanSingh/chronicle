@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "envelope_id": "745360a0-be78-488b-bd60-40c2698cbe06",
+  "trace_id": "trace-parent-calls-subagent-twice",
+  "node_id": "web_search",
+  "boundary_kind": "tool",
+  "parent_envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
+  "sequence": 5,
+  "invocation_index": 2,
+  "timestamp": "2026-08-10T15:22:51.015002Z",
+  "started_at": "2026-08-10T15:22:50.984110Z",
+  "metadata": {
+    "model_version": "unknown",
+    "sampling_params": {
+      "temperature": null,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "extra": {}
+    },
+    "build_id": "dev-local",
+    "tool_schemas": [],
+    "framework": "chronicle.boundary",
+    "node_id": "web_search",
+    "trace_id": "trace-parent-calls-subagent-twice",
+    "extra": {}
+  },
+  "input_state": {
+    "messages": [],
+    "system_prompt": null,
+    "rag_chunks": [],
+    "graph_state": {
+      "q": "risks"
+    }
+  },
+  "action_result": {
+    "tool_calls": [],
+    "completion": "{'results': ['doc about risks'], 'q': 'risks'}",
+    "finish_reason": null,
+    "token_usage": {},
+    "raw_response": {
+      "results": [
+        "doc about risks"
+      ],
+      "q": "risks"
+    },
+    "error": null,
+    "error_type": null
+  },
+  "dims": {
+    "session_id": "sess_subagent_x2",
+    "message_id": "msg_042",
+    "user_id": "dev",
+    "scenario": "parent_calls_subagent_twice",
+    "boundary_kind": "tool",
+    "node_id": "web_search"
+  }
+}

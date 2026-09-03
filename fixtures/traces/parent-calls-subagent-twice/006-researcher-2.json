@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
+  "trace_id": "trace-parent-calls-subagent-twice",
+  "node_id": "researcher",
+  "boundary_kind": "custom",
+  "parent_envelope_id": "0c707775-33af-4885-9d6d-ce23018b7036",
+  "sequence": 6,
+  "invocation_index": 2,
+  "timestamp": "2026-08-10T15:22:51.015155Z",
+  "started_at": "2026-08-10T15:22:50.942852Z",
+  "metadata": {
+    "model_version": "unknown",
+    "sampling_params": {
+      "temperature": null,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "extra": {}
+    },
+    "build_id": "dev-local",
+    "tool_schemas": [],
+    "framework": "chronicle.boundary",
+    "node_id": "researcher",
+    "trace_id": "trace-parent-calls-subagent-twice",
+    "extra": {}
+  },
+  "input_state": {
+    "messages": [],
+    "system_prompt": null,
+    "rag_chunks": [],
+    "graph_state": {
+      "query": "risks"
+    }
+  },
+  "action_result": {
+    "tool_calls": [],
+    "completion": "findings:doc about risks",
+    "finish_reason": null,
+    "token_usage": {},
+    "raw_response": null,
+    "error": null,
+    "error_type": null
+  },
+  "dims": {
+    "session_id": "sess_subagent_x2",
+    "message_id": "msg_042",
+    "user_id": "dev",
+    "scenario": "parent_calls_subagent_twice",
+    "boundary_kind": "custom",
+    "node_id": "researcher"
+  }
+}

@@ -20,8 +20,9 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from chronicle.boundary import boundary
+from chronicle.config import is_enabled
 from chronicle.envelope.schema import ActionResult, InputState
-from chronicle.session import SessionMode, get_session, sampling_params_from
+from chronicle.session import SessionMode, get_session, peek_session, sampling_params_from
 
 
 def instrument_langgraph(nodes: Mapping[str, Callable], *, kind: str = "custom") -> dict[str, Callable]:
@@ -169,25 +170,49 @@ def _wrap_completion(create: Callable, boundary_id: str) -> Callable:
     if inspect.iscoroutinefunction(create):
         @functools.wraps(create)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            session = get_session()
+            if not is_enabled():
+                session = peek_session()
+                if session is None or session.mode is SessionMode.LIVE:
+                    return await create(*args, **kwargs)
+            else:
+                session = get_session()
             input_state = _input_state(kwargs)
             if session.mode is SessionMode.REPLAY and _should_stub(session, boundary_id):
                 return _stub(session, boundary_id)
-            result = await create(*args, **kwargs)
-            _observe(session, boundary_id, input_state, result, kwargs)
-            return result
+            span_id, parent_id = session.start_span()
+            try:
+                result = await create(*args, **kwargs)
+                _observe(
+                    session, boundary_id, input_state, result, kwargs,
+                    envelope_id=span_id, parent_envelope_id=parent_id,
+                )
+                return result
+            finally:
+                session.end_span()
 
         return async_wrapper
 
     @functools.wraps(create)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        session = get_session()
+        if not is_enabled():
+            session = peek_session()
+            if session is None or session.mode is SessionMode.LIVE:
+                return create(*args, **kwargs)
+        else:
+            session = get_session()
         input_state = _input_state(kwargs)
         if session.mode is SessionMode.REPLAY and _should_stub(session, boundary_id):
             return _stub(session, boundary_id)
-        result = create(*args, **kwargs)
-        _observe(session, boundary_id, input_state, result, kwargs)
-        return result
+        span_id, parent_id = session.start_span()
+        try:
+            result = create(*args, **kwargs)
+            _observe(
+                session, boundary_id, input_state, result, kwargs,
+                envelope_id=span_id, parent_envelope_id=parent_id,
+            )
+            return result
+        finally:
+            session.end_span()
 
     return wrapper
 
@@ -197,7 +222,12 @@ def _should_stub(session, boundary_id: str) -> bool:
     return session.replay_plan.should_stub(boundary_id, invocation_index)
 
 
-def _observe(session, boundary_id, input_state, response, request_kwargs):
+def _observe(
+    session, boundary_id, input_state, response, request_kwargs,
+    *,
+    envelope_id: str | None = None,
+    parent_envelope_id: str | None = None,
+):
     """Record in LIVE, or capture as a live cut-point in REPLAY. Never mutates the
     response; the caller always gets the real object."""
     completion, model, usage = _extract(response)
@@ -216,6 +246,7 @@ def _observe(session, boundary_id, input_state, response, request_kwargs):
         session.record_envelope(
             boundary_id, "llm", input_state, action,
             model_version=model, sampling_params=sampling_params_from(request_kwargs),
+            envelope_id=envelope_id, parent_envelope_id=parent_envelope_id,
         )
     if session.on_crossing is not None:
         session.on_crossing(boundary_id, "llm", input_state, response)

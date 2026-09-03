@@ -14,6 +14,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kind="router"` boundaries and replay deterministically (which branch was
   taken), not just each node's input/output. (#22)
 
+## [0.4.0] - 2026-08-14
+
+### Changed
+- **`RemoteStore`** now talks to the AgentPlane control plane: `POST /v1/envelopes:batch`
+  for writes and `GET /v1/traces/{trace_id}/envelopes` for replay. Failed remote
+  writes warn and drop rather than crashing the agent.
+
+### Added
+- **Trace/envelope `dims`**: flat `dict[str, str]` attributes on every envelope.
+  Pass trace-level dims via `chronicle.record(..., dims={...})`; they are copied
+  onto each span. Envelope-specific dims (e.g. `model_version`) merge on top.
+  File storage only for now (JSONL / fixture export). Lookup by dims belongs on
+  the shared control plane / dashboard, not in this library.
+- **OTel-style nest parents**: boundaries open a span on the Context stack before
+  the body runs (`start_span` / `end_span`), so nested calls set
+  `parent_envelope_id` to the active parent (not the last finished envelope).
+  Optional debug helpers: `ExecutionGraph.to_otel_tree()` /
+  `to_otel_waterfall()` (product UI stays shared with TokenOps / the plane).
+- **Dev / CI extras**: `[dev]` installs `[otel]` (OpenTelemetry + OpenInference)
+  instead of full `[phoenix]`, so `arize-phoenix` is not pulled into pytest
+  collection (its pytest plugin has been crashing CI on Python 3.11). Use
+  `pip install agent-chronicle[phoenix]` when you want the Phoenix collector/UI.
+- **`CHRONICLE_ENABLED`**: set to `0` / `false` / `off` / `no` to turn off LIVE
+  recording. `@boundary`, `wrap`, `wrap_llm`, `record()`, and `EnvelopeRecorder`
+  become passthrough so an agent can be run with and without Chronicle. Replay is
+  unaffected. Check with `chronicle.is_enabled()`.
+- **`BufferedStore`**: in-memory buffer with batched flush over any inner store
+  (`JsonlStore.append_many` for one open/write). Also
+  `open_store("buffered:32:runs.jsonl")`.
+- **Recording hot-path speedups**: cache `inspect.signature` per boundary,
+  dataclass-aware `_json_safe`, `Envelope.model_construct` on LIVE record,
+  `JsonlStore(keep_open=True)`, and `retain_envelopes=` on `record()` /
+  session (skip in-memory list when only the store write is needed).
+- **BufferedStore durability**: `record()` flushes the store on context exit;
+  failed flushes restore the in-memory batch instead of dropping it.
+- **Message capture**: `_json_safe` keeps full dataclass / duck-typed message
+  fields (not just `role`/`content`); every messages entry is coerced to a dict.
+
 ## [0.3.0] - 2026-07-24
 
 ### Added
@@ -96,7 +134,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenInference / Arize Phoenix normalization and optional LangGraph node
   wrapping.
 
-[Unreleased]: https://github.com/theagentplane/chronicle/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/theagentplane/chronicle/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/theagentplane/chronicle/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/theagentplane/chronicle/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/theagentplane/chronicle/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/theagentplane/chronicle/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/theagentplane/chronicle/compare/v0.1.1...v0.1.2

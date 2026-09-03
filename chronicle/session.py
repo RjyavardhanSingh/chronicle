@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
     from chronicle.execution_graph import ExecutionGraph
 
 _envelope_stack: ContextVar[list[str]] = ContextVar("chronicle_envelope_stack", default=[])
+# Sentinel so record_envelope can accept parent_envelope_id=None for root spans.
+_PARENT_UNSET = object()
 
 
 class SessionMode(str, Enum):
@@ -63,10 +66,19 @@ class ChronicleSession:
     # whether the function returned or raised. Signature:
     # (boundary_id, kind, input_state) -> None
     on_leave: Callable[[str, str, InputState], None] | None = None
+    # Optional observer fired with the full Envelope right after it is recorded
+    # (LIVE). Used by exporters (e.g. OpenTelemetry) to emit one span per crossing.
+    # Signature: (envelope) -> None
+    on_record: Callable[[Envelope], None] | None = None
     # Applied to each envelope before it is retained or stored, so secrets never
     # reach a committed fixture. Empty by default; set to default_redactors() or
     # your own. Signature: (str) -> str. See chronicle.redaction.
     redactors: list[Callable[[str], str]] = field(default_factory=list)
+    # When False, envelopes are written to ``store`` only and not kept on the
+    # session (``export_trace`` will be empty). Cuts memory traffic on hot paths.
+    retain_envelopes: bool = True
+    # Trace-level flat string→string attributes (copied onto every envelope).
+    dims: dict[str, str] = field(default_factory=dict)
 
     _sequence: int = 0
     _invocation_counts: dict[str, int] = field(default_factory=dict)
@@ -76,12 +88,20 @@ class ChronicleSession:
     _captured_results: dict[tuple[str, int], Any] = field(default_factory=dict)
     _recorded_envelopes: list[Envelope] = field(default_factory=list)
     _last_envelope_id: str | None = None
+    _span_started_at: dict[str, datetime] = field(default_factory=dict)
 
-    def begin_trace(self, trace_id: str | None = None) -> str:
+    def begin_trace(
+        self,
+        trace_id: str | None = None,
+        *,
+        dims: dict[str, str] | None = None,
+    ) -> str:
         if trace_id:
             self.trace_id = trace_id
         else:
             self.trace_id = str(uuid.uuid4())
+        if dims is not None:
+            self.dims = {str(k): str(v) for k, v in dims.items()}
         self._sequence = 0
         self._invocation_counts.clear()
         self._replay_cursor.clear()
@@ -90,8 +110,25 @@ class ChronicleSession:
         self._captured_results.clear()
         self._recorded_envelopes.clear()
         self._last_envelope_id = None
+        self._span_started_at.clear()
         _envelope_stack.set([])
         return self.trace_id
+
+    def start_span(self) -> tuple[str, str | None]:
+        """Allocate a span id and push it as the active parent (OTel Context).
+
+        Returns ``(span_id, parent_span_id)``. Nested boundaries that start while
+        this span is active parent to ``span_id``. Call ``end_span`` in a finally.
+        """
+        parent_id = self.current_parent_id()
+        span_id = str(uuid.uuid4())
+        self._span_started_at[span_id] = datetime.now(timezone.utc)
+        self._push_envelope(span_id)
+        return span_id, parent_id
+
+    def end_span(self) -> None:
+        """Pop the active span from the nest stack."""
+        self._pop_envelope()
 
     def enable_replay(self, plan: ReplayPlan | None = None) -> None:
         self.mode = SessionMode.REPLAY
@@ -144,31 +181,70 @@ class ChronicleSession:
         model_version: str | None = None,
         sampling_params: SamplingParams | None = None,
         tool_schemas: list[ToolSchema] | None = None,
+        envelope_id: str | None = None,
+        parent_envelope_id: Any = _PARENT_UNSET,
+        dims: dict[str, str] | None = None,
     ) -> Envelope:
         invocation_index = self.next_invocation(boundary_id)
         sequence = self.next_sequence()
-        parent_id = self._last_envelope_id
+        # Prefer explicit ids from start_span (OTel Context nesting). Fall back to
+        # linear last-finished only when the caller did not open a span.
+        # Important: parent_envelope_id=None means root (no parent); only the
+        # sentinel means "compute parent for me".
+        if envelope_id is None:
+            envelope_id = str(uuid.uuid4())
+        if parent_envelope_id is _PARENT_UNSET:
+            # If this id is already on the stack (start_span), parent is below it.
+            stack = _envelope_stack.get()
+            if stack and stack[-1] == envelope_id and len(stack) >= 2:
+                parent_id = stack[-2]
+            elif stack and stack[-1] != envelope_id:
+                parent_id = stack[-1]
+            else:
+                parent_id = self._last_envelope_id
+        else:
+            parent_id = parent_envelope_id
 
-        envelope = Envelope(
+        resolved_model = model_version or self.model_version
+        # Trace dims first; envelope dims override. Promote common span attrs.
+        merged_dims = {str(k): str(v) for k, v in self.dims.items()}
+        if resolved_model and resolved_model != "unknown":
+            merged_dims.setdefault("model_version", str(resolved_model))
+        merged_dims.setdefault("boundary_kind", kind)
+        merged_dims.setdefault("node_id", boundary_id)
+        if dims:
+            merged_dims.update({str(k): str(v) for k, v in dims.items()})
+
+        # model_construct: fields are produced by Chronicle itself; skip pydantic
+        # validation on the hot LIVE path.
+        envelope = Envelope.model_construct(
+            schema_version="1.0",
+            envelope_id=envelope_id,
             trace_id=self.trace_id,
             node_id=boundary_id,
             boundary_kind=kind,
             parent_envelope_id=parent_id,
             sequence=sequence,
             invocation_index=invocation_index,
-            metadata=ContextMetadata(
+            timestamp=datetime.now(timezone.utc),
+            started_at=self._span_started_at.pop(envelope_id, None),
+            metadata=ContextMetadata.model_construct(
                 # Prefer what the call actually used; fall back to the session
                 # default only when the boundary surfaced no real metadata.
-                model_version=model_version or self.model_version,
+                model_version=resolved_model,
                 build_id=self.build_id,
-                sampling_params=sampling_params or SamplingParams(),
+                sampling_params=sampling_params or SamplingParams.model_construct(
+                    temperature=None, top_p=None, max_tokens=None, seed=None, extra={},
+                ),
                 tool_schemas=tool_schemas or [],
                 framework="chronicle.boundary",
                 node_id=boundary_id,
                 trace_id=self.trace_id,
+                extra={},
             ),
             input_state=input_state,
             action_result=action_result,
+            dims=merged_dims,
         )
 
         if self.redactors:
@@ -176,18 +252,17 @@ class ChronicleSession:
 
             envelope = apply_redactors(envelope, self.redactors)
 
-        self._push_envelope(envelope.envelope_id)
-        try:
+        if self.retain_envelopes:
             self._recorded_envelopes.append(envelope)
-            self._last_envelope_id = envelope.envelope_id
-            if self.store is not None:
-                self.store.append(envelope)
-        finally:
-            self._pop_envelope()
+        self._last_envelope_id = envelope.envelope_id
+        if self.store is not None:
+            self.store.append(envelope)
 
         self._call_log.append(
             CallRecord(boundary_id, invocation_index, "record", envelope.envelope_id)
         )
+        if self.on_record is not None:
+            self.on_record(envelope)
         return envelope
 
     def _fixture_for(self, boundary_id: str) -> Envelope:
@@ -226,6 +301,11 @@ class ChronicleSession:
     def call_log(self) -> list[CallRecord]:
         return list(self._call_log)
 
+    @property
+    def envelopes(self) -> list[Envelope]:
+        """Recorded envelopes for this trace (empty when ``retain_envelopes=False``)."""
+        return list(self._recorded_envelopes)
+
     def export_trace(self, directory: str | Path) -> Path:
         from chronicle.execution_graph import ExecutionGraph
 
@@ -248,6 +328,11 @@ def get_session() -> ChronicleSession:
         session = ChronicleSession()
         _session.set(session)
     return session
+
+
+def peek_session() -> ChronicleSession | None:
+    """Return the context session if one exists, without creating one."""
+    return _session.get()
 
 
 def reset_session() -> ChronicleSession:
@@ -301,9 +386,14 @@ def _router_decision(result: Any) -> Any:
 
 def result_to_action_result(result: Any, kind: str) -> ActionResult:
     if kind == "tool" and isinstance(result, dict):
-        return ActionResult(
+        return ActionResult.model_construct(
+            tool_calls=[],
             completion=result.get("status", str(result)),
+            finish_reason=None,
+            token_usage={},
             raw_response=result,
+            error=None,
+            error_type=None,
         )
     if kind == "router":
         decision = _router_decision(result)
@@ -313,20 +403,31 @@ def result_to_action_result(result: Any, kind: str) -> ActionResult:
         )
     if kind == "llm" and isinstance(result, dict):
         tool_calls = [
-            ToolCall(
+            ToolCall.model_construct(
                 id=tc.get("id"),
                 name=tc.get("name", ""),
                 arguments=tc.get("arguments", {}),
             )
             for tc in result.get("tool_calls", [])
         ]
-        return ActionResult(
+        return ActionResult.model_construct(
             tool_calls=tool_calls,
             completion=result.get("completion"),
             finish_reason=result.get("finish_reason"),
             token_usage=_as_token_usage(result.get("token_usage") or result.get("usage")),
+            raw_response=None,
+            error=None,
+            error_type=None,
         )
-    return ActionResult(completion=str(result), raw_response=result if isinstance(result, dict) else None)
+    return ActionResult.model_construct(
+        tool_calls=[],
+        completion=str(result),
+        finish_reason=None,
+        token_usage={},
+        raw_response=result if isinstance(result, dict) else None,
+        error=None,
+        error_type=None,
+    )
 
 
 def _as_token_usage(source: Any) -> dict[str, int]:
