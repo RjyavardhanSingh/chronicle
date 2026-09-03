@@ -14,10 +14,6 @@ are tracked in [issues](https://github.com/theagentplane/chronicle/issues).
 Capture streamed / server-sent responses and `async def` generators, recording the
 assembled result at the boundary. Today you record the non-streamed response.
 
-### Auto-instrument compiled LangGraph
-Wrap a compiled LangGraph app in one call and capture routing and edge decisions, not
-just node I/O. Today `instrument_langgraph(nodes)` wraps a node dict by hand.
-
 ### pytest integration
 A thin helper so a committed incident becomes a one-decorator regression test, on top of
 the existing `replay_trace(...)` context manager.
