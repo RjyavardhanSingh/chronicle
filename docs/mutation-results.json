@@ -1,0 +1,684 @@
+{
+  "incidents": [
+    {
+      "name": "Refund",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 33,
+      "killed_cutpoint": 9,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L58: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L58: amount_cents > MAX_REFUND_CENTS -> amount_cents >= MAX_REFUND_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L58: amount_cents > MAX_REFUND_CENTS -> amount_cents != MAX_REFUND_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L58: _mode in ('gated', 'benign') and amount_cents > MAX_REFUND_CENTS -> _mode in ('gated', 'benign') or amount_cents > MAX_REFUND_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and amount_cents > MAX_REFUND_CENTS -> amount_cents > MAX_REFUND_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and amount_cents > MAX_REFUND_CENTS -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L62: 'order_id' -> 'XXorder_idXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L63: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L64: 'max_refund_cents' -> 'XXmax_refund_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L70: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L70: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L73: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L74: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L70: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L79: 'order_id' -> 'XXorder_idXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L80: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L81: 'order_total_cents' -> 'XXorder_total_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L82: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'refunded' -> 'XXrefundedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: False -> True"
+        }
+      ]
+    },
+    {
+      "name": "Invoice",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 35,
+      "killed_cutpoint": 9,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L58: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L58: amount_cents > MAX_INVOICE_CENTS -> amount_cents >= MAX_INVOICE_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L58: amount_cents > MAX_INVOICE_CENTS -> amount_cents != MAX_INVOICE_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L58: _mode in ('gated', 'benign') and amount_cents > MAX_INVOICE_CENTS -> _mode in ('gated', 'benign') or amount_cents > MAX_INVOICE_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and amount_cents > MAX_INVOICE_CENTS -> amount_cents > MAX_INVOICE_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and amount_cents > MAX_INVOICE_CENTS -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L62: 'customer_id' -> 'XXcustomer_idXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L63: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L64: 'currency' -> 'XXcurrencyXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L65: 'max_invoice_cents' -> 'XXmax_invoice_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L71: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L71: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L73: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L74: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L71: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L79: 'customer_id' -> 'XXcustomer_idXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L80: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L81: 'currency' -> 'XXcurrencyXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L82: 'contract_currency' -> 'XXcontract_currencyXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L83: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'sent' -> 'XXsentXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: False -> True"
+        }
+      ]
+    },
+    {
+      "name": "Trade",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 37,
+      "killed_cutpoint": 9,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L64: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L64: notional_cents > MAX_ORDER_NOTIONAL_CENTS -> notional_cents >= MAX_ORDER_NOTIONAL_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L64: notional_cents > MAX_ORDER_NOTIONAL_CENTS -> notional_cents != MAX_ORDER_NOTIONAL_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L64: _mode in ('gated', 'benign') and notional_cents > MAX_ORDER_NOTIONAL_CENTS -> _mode in ('gated', 'benign') or notional_cents > MAX_ORDER_NOTIONAL_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L64: _mode in ('gated', 'benign') and notional_cents > MAX_ORDER_NOTIONAL_CENTS -> notional_cents > MAX_ORDER_NOTIONAL_CENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L64: _mode in ('gated', 'benign') and notional_cents > MAX_ORDER_NOTIONAL_CENTS -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L66: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L68: 'symbol' -> 'XXsymbolXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L69: 'quantity' -> 'XXquantityXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L70: 'side' -> 'XXsideXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L71: 'notional_cents' -> 'XXnotional_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L72: 'max_order_notional_cents' -> 'XXmax_order_notional_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L66: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L78: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L78: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L80: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L81: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L78: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L84: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L85: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L86: 'symbol' -> 'XXsymbolXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L87: 'quantity' -> 'XXquantityXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L88: 'side' -> 'XXsideXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L89: 'fill_price_cents' -> 'XXfill_price_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L90: 'notional_cents' -> 'XXnotional_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L91: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L84: 'filled' -> 'XXfilledXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L85: False -> True"
+        }
+      ]
+    },
+    {
+      "name": "Email",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 32,
+      "killed_cutpoint": 9,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L59: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L59: recipient_count > MAX_RECIPIENTS -> recipient_count >= MAX_RECIPIENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "ROR L59: recipient_count > MAX_RECIPIENTS -> recipient_count != MAX_RECIPIENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L59: _mode in ('gated', 'benign') and recipient_count > MAX_RECIPIENTS -> _mode in ('gated', 'benign') or recipient_count > MAX_RECIPIENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L59: _mode in ('gated', 'benign') and recipient_count > MAX_RECIPIENTS -> recipient_count > MAX_RECIPIENTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L59: _mode in ('gated', 'benign') and recipient_count > MAX_RECIPIENTS -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L61: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L63: 'segment' -> 'XXsegmentXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L64: 'recipient_count' -> 'XXrecipient_countXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L65: 'max_recipients' -> 'XXmax_recipientsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L61: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L71: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L71: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L73: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L74: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L71: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L79: 'segment' -> 'XXsegmentXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L80: 'recipient_count' -> 'XXrecipient_countXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L81: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'sent' -> 'XXsentXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: False -> True"
+        }
+      ]
+    },
+    {
+      "name": "Payout",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 27,
+      "killed_cutpoint": 7,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L58: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L58: _mode in ('gated', 'benign') and account not in APPROVED_ACCOUNTS -> _mode in ('gated', 'benign') or account not in APPROVED_ACCOUNTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and account not in APPROVED_ACCOUNTS -> account not in APPROVED_ACCOUNTS"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L58: _mode in ('gated', 'benign') and account not in APPROVED_ACCOUNTS -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L62: 'account' -> 'XXaccountXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L63: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L60: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L69: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L69: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L71: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L72: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L69: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L75: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L76: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L77: 'account' -> 'XXaccountXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L78: 'amount_cents' -> 'XXamount_centsXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L79: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L75: 'transferred' -> 'XXtransferredXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L76: False -> True"
+        }
+      ]
+    },
+    {
+      "name": "Deletion",
+      "model_crossings": 2,
+      "cutpoint_verdicts": {
+        "ungated": false,
+        "gated": true,
+        "benign": true
+      },
+      "fullstub_verdicts": {
+        "ungated": false,
+        "gated": false,
+        "benign": false
+      },
+      "mutants": 28,
+      "killed_cutpoint": 8,
+      "killed_fullstub": 0,
+      "survivors": [
+        {
+          "category": "guard_still_blocks",
+          "mutation": "constant L52: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "LCR L52: _mode in ('gated', 'benign') and environment == 'prod' -> _mode in ('gated', 'benign') or environment == 'prod'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L52: _mode in ('gated', 'benign') and environment == 'prod' -> environment == 'prod'"
+        },
+        {
+          "category": "guard_still_blocks",
+          "mutation": "drop-operand L52: _mode in ('gated', 'benign') and environment == 'prod' -> _mode in ('gated', 'benign')"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L54: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L56: 'dataset' -> 'XXdatasetXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L57: 'environment' -> 'XXenvironmentXX'"
+        },
+        {
+          "category": "ignored_field",
+          "mutation": "constant L54: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L60: 'benign' -> 'XXbenignXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "ROR L60: _mode == 'benign' -> _mode != 'benign'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L62: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "constant L63: 'audit_id' -> 'XXaudit_idXX'"
+        },
+        {
+          "category": "benign_branch",
+          "mutation": "negate-cond L60: _mode == 'benign' -> not _mode == 'benign'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L66: 'status' -> 'XXstatusXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L67: 'blocked' -> 'XXblockedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L68: 'dataset' -> 'XXdatasetXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L69: 'environment' -> 'XXenvironmentXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L70: 'message' -> 'XXmessageXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L66: 'deleted' -> 'XXdeletedXX'"
+        },
+        {
+          "category": "unguarded_path",
+          "mutation": "constant L67: False -> True"
+        }
+      ]
+    }
+  ],
+  "fullstub_suite_ms": 3.496249992167577,
+  "cutpoint_suite_ms": 3.579150012228638
+}
