@@ -7,6 +7,7 @@ Turn a production agent failure into a committed regression test, and re-run you
 
 [![CI](https://github.com/theagentplane/chronicle/actions/workflows/ci.yml/badge.svg)](https://github.com/theagentplane/chronicle/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/agent-chronicle.svg)](https://pypi.org/project/agent-chronicle/)
+[![arXiv](https://img.shields.io/badge/arXiv-2609.20625-b31b1b.svg)](https://arxiv.org/abs/2609.20625)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/agent-chronicle/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://github.com/theagentplane/chronicle/blob/main/LICENSE.txt)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -741,6 +742,22 @@ Presented at the **AI Engineer World's Fair 2026**.
 
 - [Your Agent Failed in Prod. Good Luck Reproducing It](https://dev.to/tisha/your-agent-failed-in-prod-good-luck-reproducing-it-56ci): why record and replay beats forcing determinism.
 - [You Recorded the Incident. Now Prove Your Fix Actually Works](https://dev.to/tisha/you-recorded-the-incident-now-prove-your-fix-actually-works-2cni): cut-point replay, turning an incident into a regression test.
+
+## Citation
+
+Chronicle is described in our paper [*Chronicle: Cut-Point Replay for Regression Testing of LLM Agents*](https://arxiv.org/abs/2609.20625) (arXiv:2609.20625). If you use Chronicle in your research, please cite it:
+
+```bibtex
+@misc{chawla2026chroniclecutpointreplayregression,
+      title={Chronicle: Cut-Point Replay for Regression Testing of LLM Agents},
+      author={Tisha Chawla and Susheem Koul},
+      year={2026},
+      eprint={2609.20625},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2609.20625},
+}
+```
 
 ## Contributing
 
