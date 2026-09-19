@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use Chronicle in your research, please cite the paper below."
+title: "Chronicle: Cut-Point Replay for Regression Testing of LLM Agents"
+authors:
+  - family-names: Chawla
+    given-names: Tisha
+  - family-names: Koul
+    given-names: Susheem
+repository-code: "https://github.com/theagentplane/chronicle"
+license: MIT
+type: software
+preferred-citation:
+  type: article
+  title: "Chronicle: Cut-Point Replay for Regression Testing of LLM Agents"
+  authors:
+    - family-names: Chawla
+      given-names: Tisha
+    - family-names: Koul
+      given-names: Susheem
+  year: 2026
+  journal: "arXiv preprint arXiv:2609.20625"
+  doi: "10.48550/arXiv.2609.20625"
+  url: "https://arxiv.org/abs/2609.20625"
