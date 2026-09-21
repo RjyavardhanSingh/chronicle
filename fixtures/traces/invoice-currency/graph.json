@@ -1,42 +1,64 @@
 {
-  "trace_id": "trace-invoice-currency-001",
-  "nodes": [
+  "trace_id": "2a93cca4a73be4b0c3a216edab4d7325",
+  "attributes": {
+    "chronicle.trace.name": "trace-invoice-currency-001"
+  },
+  "spans": [
     {
-      "envelope_id": "b99454ef-9ade-4d77-9ccd-21b258e744d5",
-      "boundary_id": "agent",
-      "boundary_kind": "llm",
+      "envelope_id": "1db92c37257c909f",
+      "name": "agent",
+      "kind": "llm",
       "invocation_index": 1,
       "sequence": 1,
       "fixture": "001-agent-1.json"
     },
     {
-      "envelope_id": "1a674dae-2e50-48a7-bb73-7c110dd451a8",
-      "boundary_id": "create_invoice",
-      "boundary_kind": "tool",
+      "envelope_id": "71138c619e6a5bb9",
+      "name": "create_invoice",
+      "kind": "tool",
       "invocation_index": 1,
       "sequence": 2,
       "fixture": "002-create_invoice-1.json"
     },
     {
-      "envelope_id": "841d0492-3630-497f-a9e8-15254517fd2f",
-      "boundary_id": "agent",
-      "boundary_kind": "llm",
+      "envelope_id": "79292b4e6b258d0c",
+      "name": "agent",
+      "kind": "llm",
       "invocation_index": 2,
       "sequence": 3,
       "fixture": "003-agent-2.json"
     }
   ],
-  "edges": [
-    [
-      "b99454ef-9ade-4d77-9ccd-21b258e744d5",
-      "1a674dae-2e50-48a7-bb73-7c110dd451a8"
-    ],
-    [
-      "1a674dae-2e50-48a7-bb73-7c110dd451a8",
-      "841d0492-3630-497f-a9e8-15254517fd2f"
-    ]
+  "nodes": [
+    {
+      "envelope_id": "1db92c37257c909f",
+      "name": "agent",
+      "kind": "llm",
+      "invocation_index": 1,
+      "sequence": 1,
+      "fixture": "001-agent-1.json"
+    },
+    {
+      "envelope_id": "71138c619e6a5bb9",
+      "name": "create_invoice",
+      "kind": "tool",
+      "invocation_index": 1,
+      "sequence": 2,
+      "fixture": "002-create_invoice-1.json"
+    },
+    {
+      "envelope_id": "79292b4e6b258d0c",
+      "name": "agent",
+      "kind": "llm",
+      "invocation_index": 2,
+      "sequence": 3,
+      "fixture": "003-agent-2.json"
+    }
   ],
+  "edges": [],
   "roots": [
-    "b99454ef-9ade-4d77-9ccd-21b258e744d5"
+    "1db92c37257c909f",
+    "71138c619e6a5bb9",
+    "79292b4e6b258d0c"
   ]
 }

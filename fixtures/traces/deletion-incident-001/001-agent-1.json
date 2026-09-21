@@ -1,39 +1,20 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "8909e1de-9a88-44ef-96cf-0e215ffdc25c",
-  "trace_id": "trace-deletion-incident-001",
-  "node_id": "agent",
-  "boundary_kind": "llm",
+  "schema_version": "2.0",
+  "envelope_id": "7cd5fcacffc43148",
+  "trace_id": "529e1a6814bd092a9a1ef254b64785a5",
+  "name": "agent",
+  "kind": "llm",
   "parent_envelope_id": null,
   "sequence": 1,
   "invocation_index": 1,
-  "timestamp": "2026-06-18T17:48:23.362992Z",
-  "metadata": {
-    "model_version": "demo-model",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
-    },
-    "build_id": "deletion-demo-record",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "agent",
-    "trace_id": "trace-deletion-incident-001",
-    "extra": {}
+  "start_time": "2026-09-20T15:02:09.926179Z",
+  "end_time": "2026-09-20T15:02:09.926421Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
   },
-  "input_state": {
-    "messages": [
-      {
-        "role": "user",
-        "content": "Clean up old application logs in production"
-      }
-    ],
-    "system_prompt": "You are an ops assistant that manages log files.",
-    "rag_chunks": [],
-    "graph_state": {
+  "input": {
+    "arguments": {
       "messages": [
         {
           "role": "user",
@@ -48,22 +29,33 @@
       "finish_reason": "",
       "deleted": false,
       "blocked": false
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Clean up old application logs in production"
+      }
+    ]
+  },
+  "output": {
+    "value": null,
+    "llm": {
+      "text": "I'll delete the old production log file now.",
+      "tool_calls": [
+        {
+          "id": "call_delete_1",
+          "name": "delete_file",
+          "arguments": {
+            "path": "/prod/logs/app.log",
+            "environment": "prod"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls",
+      "usage": null
     }
   },
-  "action_result": {
-    "tool_calls": [
-      {
-        "id": "call_delete_1",
-        "name": "delete_file",
-        "arguments": {
-          "path": "/prod/logs/app.log",
-          "environment": "prod"
-        }
-      }
-    ],
-    "completion": "I'll delete the old production log file now.",
-    "finish_reason": "tool_calls",
-    "token_usage": {},
-    "raw_response": null
+  "attributes": {
+    "chronicle.trace.name": "trace-deletion-incident-001"
   }
 }

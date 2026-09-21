@@ -3,23 +3,27 @@
 from pathlib import Path
 
 from chronicle.execution_graph import ExecutionGraph
+from chronicle.ids import is_span_id, is_trace_id
 
 TRACE_DIR = Path(__file__).parent.parent / "fixtures" / "traces" / "deletion-incident-001"
 
 
 def test_execution_graph_loads_trace():
     graph = ExecutionGraph.load(TRACE_DIR)
-    assert graph.trace_id == "trace-deletion-incident-001"
+    assert is_trace_id(graph.trace_id)
+    assert graph.attributes["chronicle.trace.name"] == "trace-deletion-incident-001"
     assert len(graph.timeline()) == 3
 
 
-def test_execution_graph_parent_chain():
+def test_execution_graph_sequential_boundaries_are_sibling_roots():
+    """Boundaries that run one after another (not nested) are all roots."""
     graph = ExecutionGraph.load(TRACE_DIR)
     timeline = graph.timeline()
-    assert timeline[0].node_id == "agent"
-    assert timeline[1].node_id == "delete_file"
-    assert timeline[1].parent_envelope_id == timeline[0].envelope_id
-    assert timeline[2].parent_envelope_id == timeline[1].envelope_id
+    assert [e.name for e in timeline] == ["agent", "delete_file", "agent"]
+    assert all(e.parent_envelope_id is None for e in timeline)
+    assert graph.root_ids == [e.envelope_id for e in timeline]
+    assert all(is_span_id(e.envelope_id) for e in timeline)
+    assert {e.trace_id for e in timeline} == {graph.trace_id}
 
 
 def test_execution_graph_mermaid():
@@ -27,7 +31,7 @@ def test_execution_graph_mermaid():
     mermaid = graph.to_mermaid()
     assert "agent@1" in mermaid
     assert "delete_file@1" in mermaid
-    assert "-->" in mermaid
+    assert "agent@2" in mermaid
 
 
 def test_parent_calls_same_subagent_twice_waterfall():
@@ -39,9 +43,9 @@ def test_parent_calls_same_subagent_twice_waterfall():
         / "parent-calls-subagent-twice"
     )
     timeline = graph.timeline()
-    orch = next(e for e in timeline if e.node_id == "orchestrator")
+    orch = next(e for e in timeline if e.name == "orchestrator")
     researchers = [e for e in timeline if e.parent_envelope_id == orch.envelope_id]
-    assert [(e.node_id, e.invocation_index) for e in researchers] == [
+    assert [(e.name, e.invocation_index) for e in researchers] == [
         ("researcher", 1),
         ("researcher", 2),
     ]
@@ -50,8 +54,8 @@ def test_parent_calls_same_subagent_twice_waterfall():
             (e for e in timeline if e.parent_envelope_id == r.envelope_id),
             key=lambda e: e.sequence,
         )
-        assert [e.boundary_kind for e in kids] == ["llm", "tool"]
-        assert [e.node_id for e in kids] == ["llm", "web_search"]
+        assert [e.kind for e in kids] == ["llm", "tool"]
+        assert [e.name for e in kids] == ["llm", "web_search"]
 
     tree = graph.to_otel_tree()
     assert "orchestrator#1" in tree

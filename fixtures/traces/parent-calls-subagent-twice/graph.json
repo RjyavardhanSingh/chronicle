@@ -1,64 +1,65 @@
 {
-  "trace_id": "trace-parent-calls-subagent-twice",
-  "dims": {
+  "trace_id": "91d219852d914be735a7ca7351cf4d4b",
+  "attributes": {
     "session_id": "sess_subagent_x2",
     "message_id": "msg_042",
     "user_id": "dev",
-    "scenario": "parent_calls_subagent_twice"
+    "scenario": "parent_calls_subagent_twice",
+    "chronicle.trace.name": "parent-calls-subagent-twice"
   },
   "spans": [
     {
-      "envelope_id": "fc9038f7-b52e-4c47-8aaf-afdf4761e3fb",
-      "boundary_id": "llm",
-      "boundary_kind": "llm",
+      "envelope_id": "b10efcffb273a5dd",
+      "name": "llm",
+      "kind": "llm",
       "invocation_index": 1,
       "sequence": 1,
       "fixture": "001-llm-1.json"
     },
     {
-      "envelope_id": "694a02ce-574b-4435-acb6-d82ced786aa6",
-      "boundary_id": "web_search",
-      "boundary_kind": "tool",
+      "envelope_id": "e1ef8140f6e4b8c3",
+      "name": "web_search",
+      "kind": "tool",
       "invocation_index": 1,
       "sequence": 2,
       "fixture": "002-web_search-1.json"
     },
     {
-      "envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
-      "boundary_id": "researcher",
-      "boundary_kind": "custom",
+      "envelope_id": "4c106742645f9c7e",
+      "name": "researcher",
+      "kind": "custom",
       "invocation_index": 1,
       "sequence": 3,
       "fixture": "003-researcher-1.json"
     },
     {
-      "envelope_id": "ec8ab837-8412-45fd-b4e9-992e82135beb",
-      "boundary_id": "llm",
-      "boundary_kind": "llm",
+      "envelope_id": "cf9b4648a8b74f15",
+      "name": "llm",
+      "kind": "llm",
       "invocation_index": 2,
       "sequence": 4,
       "fixture": "004-llm-2.json"
     },
     {
-      "envelope_id": "745360a0-be78-488b-bd60-40c2698cbe06",
-      "boundary_id": "web_search",
-      "boundary_kind": "tool",
+      "envelope_id": "b2cdf168d5f572c5",
+      "name": "web_search",
+      "kind": "tool",
       "invocation_index": 2,
       "sequence": 5,
       "fixture": "005-web_search-2.json"
     },
     {
-      "envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
-      "boundary_id": "researcher",
-      "boundary_kind": "custom",
+      "envelope_id": "45d3c0da20b79bf8",
+      "name": "researcher",
+      "kind": "custom",
       "invocation_index": 2,
       "sequence": 6,
       "fixture": "006-researcher-2.json"
     },
     {
-      "envelope_id": "0c707775-33af-4885-9d6d-ce23018b7036",
-      "boundary_id": "orchestrator",
-      "boundary_kind": "custom",
+      "envelope_id": "0287549509d04aa5",
+      "name": "orchestrator",
+      "kind": "custom",
       "invocation_index": 1,
       "sequence": 7,
       "fixture": "007-orchestrator-1.json"
@@ -66,57 +67,57 @@
   ],
   "nodes": [
     {
-      "envelope_id": "fc9038f7-b52e-4c47-8aaf-afdf4761e3fb",
-      "boundary_id": "llm",
-      "boundary_kind": "llm",
+      "envelope_id": "b10efcffb273a5dd",
+      "name": "llm",
+      "kind": "llm",
       "invocation_index": 1,
       "sequence": 1,
       "fixture": "001-llm-1.json"
     },
     {
-      "envelope_id": "694a02ce-574b-4435-acb6-d82ced786aa6",
-      "boundary_id": "web_search",
-      "boundary_kind": "tool",
+      "envelope_id": "e1ef8140f6e4b8c3",
+      "name": "web_search",
+      "kind": "tool",
       "invocation_index": 1,
       "sequence": 2,
       "fixture": "002-web_search-1.json"
     },
     {
-      "envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
-      "boundary_id": "researcher",
-      "boundary_kind": "custom",
+      "envelope_id": "4c106742645f9c7e",
+      "name": "researcher",
+      "kind": "custom",
       "invocation_index": 1,
       "sequence": 3,
       "fixture": "003-researcher-1.json"
     },
     {
-      "envelope_id": "ec8ab837-8412-45fd-b4e9-992e82135beb",
-      "boundary_id": "llm",
-      "boundary_kind": "llm",
+      "envelope_id": "cf9b4648a8b74f15",
+      "name": "llm",
+      "kind": "llm",
       "invocation_index": 2,
       "sequence": 4,
       "fixture": "004-llm-2.json"
     },
     {
-      "envelope_id": "745360a0-be78-488b-bd60-40c2698cbe06",
-      "boundary_id": "web_search",
-      "boundary_kind": "tool",
+      "envelope_id": "b2cdf168d5f572c5",
+      "name": "web_search",
+      "kind": "tool",
       "invocation_index": 2,
       "sequence": 5,
       "fixture": "005-web_search-2.json"
     },
     {
-      "envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
-      "boundary_id": "researcher",
-      "boundary_kind": "custom",
+      "envelope_id": "45d3c0da20b79bf8",
+      "name": "researcher",
+      "kind": "custom",
       "invocation_index": 2,
       "sequence": 6,
       "fixture": "006-researcher-2.json"
     },
     {
-      "envelope_id": "0c707775-33af-4885-9d6d-ce23018b7036",
-      "boundary_id": "orchestrator",
-      "boundary_kind": "custom",
+      "envelope_id": "0287549509d04aa5",
+      "name": "orchestrator",
+      "kind": "custom",
       "invocation_index": 1,
       "sequence": 7,
       "fixture": "007-orchestrator-1.json"
@@ -124,31 +125,31 @@
   ],
   "edges": [
     [
-      "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
-      "fc9038f7-b52e-4c47-8aaf-afdf4761e3fb"
+      "4c106742645f9c7e",
+      "b10efcffb273a5dd"
     ],
     [
-      "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
-      "694a02ce-574b-4435-acb6-d82ced786aa6"
+      "4c106742645f9c7e",
+      "e1ef8140f6e4b8c3"
     ],
     [
-      "0c707775-33af-4885-9d6d-ce23018b7036",
-      "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1"
+      "0287549509d04aa5",
+      "4c106742645f9c7e"
     ],
     [
-      "26db5a61-3535-4790-887b-c621297b45ab",
-      "ec8ab837-8412-45fd-b4e9-992e82135beb"
+      "45d3c0da20b79bf8",
+      "cf9b4648a8b74f15"
     ],
     [
-      "26db5a61-3535-4790-887b-c621297b45ab",
-      "745360a0-be78-488b-bd60-40c2698cbe06"
+      "45d3c0da20b79bf8",
+      "b2cdf168d5f572c5"
     ],
     [
-      "0c707775-33af-4885-9d6d-ce23018b7036",
-      "26db5a61-3535-4790-887b-c621297b45ab"
+      "0287549509d04aa5",
+      "45d3c0da20b79bf8"
     ]
   ],
   "roots": [
-    "0c707775-33af-4885-9d6d-ce23018b7036"
+    "0287549509d04aa5"
   ]
 }

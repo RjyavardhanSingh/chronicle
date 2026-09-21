@@ -12,7 +12,7 @@ FIXTURES = Path(__file__).parent.parent / "fixtures" / "envelopes"
 
 @pytest.fixture
 def sample_envelope() -> Envelope:
-    return Envelope.from_file(str(FIXTURES / "incident-2026-06-17-001.json"))
+    return Envelope.from_file(str(FIXTURES / "support-agent-001.json"))
 
 
 @pytest.mark.layer2
@@ -35,8 +35,8 @@ def test_rubric_generates_judge_prompt(sample_envelope: Envelope):
     rubric = EvaluationRubric()
     prompt = rubric.judge_prompt(
         input_context="user question",
-        completion=sample_envelope.action_result.completion or "",
-        rag_chunks=[c.content for c in sample_envelope.input_state.rag_chunks],
+        completion=sample_envelope.output.llm.text or "",
+        rag_chunks=[c["content"] for c in sample_envelope.input.arguments["rag_chunks"]],
     )
     assert "grounding" in prompt
     assert "API keys can be reset" in prompt

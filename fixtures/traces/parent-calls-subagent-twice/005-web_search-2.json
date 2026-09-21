@@ -1,58 +1,40 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "745360a0-be78-488b-bd60-40c2698cbe06",
-  "trace_id": "trace-parent-calls-subagent-twice",
-  "node_id": "web_search",
-  "boundary_kind": "tool",
-  "parent_envelope_id": "26db5a61-3535-4790-887b-c621297b45ab",
+  "schema_version": "2.0",
+  "envelope_id": "b2cdf168d5f572c5",
+  "trace_id": "91d219852d914be735a7ca7351cf4d4b",
+  "name": "web_search",
+  "kind": "tool",
+  "parent_envelope_id": "45d3c0da20b79bf8",
   "sequence": 5,
   "invocation_index": 2,
-  "timestamp": "2026-08-10T15:22:51.015002Z",
-  "started_at": "2026-08-10T15:22:50.984110Z",
-  "metadata": {
-    "model_version": "unknown",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
+  "start_time": "2026-09-20T15:02:11.266050Z",
+  "end_time": "2026-09-20T15:02:11.276576Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
+  },
+  "input": {
+    "arguments": {
+      "query": "agent cost controls"
     },
-    "build_id": "dev-local",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "web_search",
-    "trace_id": "trace-parent-calls-subagent-twice",
-    "extra": {}
+    "messages": []
   },
-  "input_state": {
-    "messages": [],
-    "system_prompt": null,
-    "rag_chunks": [],
-    "graph_state": {
-      "q": "risks"
-    }
-  },
-  "action_result": {
-    "tool_calls": [],
-    "completion": "{'results': ['doc about risks'], 'q': 'risks'}",
-    "finish_reason": null,
-    "token_usage": {},
-    "raw_response": {
+  "output": {
+    "value": {
+      "query": "agent cost controls",
       "results": [
-        "doc about risks"
-      ],
-      "q": "risks"
+        "result for agent cost controls"
+      ]
     },
-    "error": null,
-    "error_type": null
+    "llm": null
   },
-  "dims": {
+  "attributes": {
     "session_id": "sess_subagent_x2",
     "message_id": "msg_042",
     "user_id": "dev",
     "scenario": "parent_calls_subagent_twice",
-    "boundary_kind": "tool",
-    "node_id": "web_search"
+    "chronicle.trace.name": "parent-calls-subagent-twice",
+    "chronicle.input.schema": "{\"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"], \"type\": \"object\"}",
+    "chronicle.output.schema": "{\"additionalProperties\": true, \"type\": \"object\"}"
   }
 }

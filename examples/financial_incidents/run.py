@@ -59,11 +59,11 @@ def _label(text: str) -> str:
 def _boundary_rows_from_record(session: ChronicleSession) -> list[BoundaryRow]:
     rows: list[BoundaryRow] = []
     for envelope in sorted(session._recorded_envelopes, key=lambda e: e.sequence):
-        node = f"{envelope.node_id}@{envelope.invocation_index}"
+        node = f"{envelope.name}@{envelope.invocation_index}"
         rows.append(
             (
                 node,
-                envelope.boundary_kind,
+                envelope.kind,
                 "LIVE",
                 summarize_envelope_input(envelope),
                 summarize_envelope_output(envelope),
@@ -119,9 +119,8 @@ def _record(scenario: ModuleType) -> None:
     scenario.set_mode("ungated")
 
     session = reset_session()
-    session.build_id = f"financial-demo-{scenario.NAME}"
     session.store = EnvelopeStore(ROOT / ".chronicle" / "runs" / f"{scenario.NAME}.jsonl")
-    session.begin_trace(scenario.TRACE_ID)
+    session.begin_trace(scenario.TRACE_NAME)
 
     result = scenario.run_agent()
 
@@ -169,21 +168,21 @@ def _test(scenario: ModuleType) -> None:
             ("refund blocked", live.get("blocked") is True),
             ("no money refunded", result.get("refunded") is False),
             ("agent@1 stubbed", session.call_log()[0].mode == "stub"),
-            (f"{tool_label} ran live", any(c.mode == "live" and c.boundary_id == tool_label for c in session.call_log())),
+            (f"{tool_label} ran live", any(c.mode == "live" and c.name == tool_label for c in session.call_log())),
         ]
     elif scenario.NAME == "invoice-currency":
         checks = [
             ("invoice blocked", live.get("blocked") is True),
             ("invoice not sent", result.get("invoice_sent") is False),
             ("agent@1 stubbed", session.call_log()[0].mode == "stub"),
-            (f"{tool_label} ran live", any(c.mode == "live" and c.boundary_id == tool_label for c in session.call_log())),
+            (f"{tool_label} ran live", any(c.mode == "live" and c.name == tool_label for c in session.call_log())),
         ]
     else:
         checks = [
             ("order blocked", live.get("blocked") is True),
             ("no shares sold", result.get("filled") is False),
             ("agent@1 stubbed", session.call_log()[0].mode == "stub"),
-            (f"{tool_label} ran live", any(c.mode == "live" and c.boundary_id == tool_label for c in session.call_log())),
+            (f"{tool_label} ran live", any(c.mode == "live" and c.name == tool_label for c in session.call_log())),
         ]
 
     print()

@@ -36,8 +36,8 @@ def test_llm_boundary_redacts_prompt_and_completion():
     # Secret is gone from both input and output...
     assert SECRET_KEY not in env.model_dump_json()
     # ...but structure is intact: role preserved, finish_reason preserved.
-    assert env.input_state.messages[0]["role"] == "user"
-    assert env.action_result.finish_reason == "stop"
+    assert env.input.messages[0].role == "user"
+    assert env.output.llm.finish_reason == "stop"
 
 
 @pytest.mark.layer1
@@ -87,3 +87,18 @@ def test_stored_file_is_redacted(tmp_path):
     on_disk = store_path.read_text(encoding="utf-8")
     assert SECRET_KEY not in on_disk
     assert "[REDACTED]" in on_disk
+
+
+def test_error_status_message_is_redacted():
+    @boundary("boom", kind="tool")
+    def boom():
+        raise RuntimeError("upstream rejected key sk-abcdefghijklmnopqrstuvwxyz123456")
+
+    session = reset_session()
+    session.redactors = default_redactors()
+    session.begin_trace("t-redact-error")
+    with pytest.raises(RuntimeError):
+        boom()
+    (env,) = session._recorded_envelopes
+    assert env.status.code == "ERROR"
+    assert "sk-abcdefghijklmnopqrstuvwxyz123456" not in (env.status.message or "")

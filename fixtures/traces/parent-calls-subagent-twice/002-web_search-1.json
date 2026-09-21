@@ -1,58 +1,40 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "694a02ce-574b-4435-acb6-d82ced786aa6",
-  "trace_id": "trace-parent-calls-subagent-twice",
-  "node_id": "web_search",
-  "boundary_kind": "tool",
-  "parent_envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
+  "schema_version": "2.0",
+  "envelope_id": "e1ef8140f6e4b8c3",
+  "trace_id": "91d219852d914be735a7ca7351cf4d4b",
+  "name": "web_search",
+  "kind": "tool",
+  "parent_envelope_id": "4c106742645f9c7e",
   "sequence": 2,
   "invocation_index": 1,
-  "timestamp": "2026-08-10T15:22:50.926832Z",
-  "started_at": "2026-08-10T15:22:50.895131Z",
-  "metadata": {
-    "model_version": "unknown",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
+  "start_time": "2026-09-20T15:02:11.243974Z",
+  "end_time": "2026-09-20T15:02:11.254838Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
+  },
+  "input": {
+    "arguments": {
+      "query": "token governance"
     },
-    "build_id": "dev-local",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "web_search",
-    "trace_id": "trace-parent-calls-subagent-twice",
-    "extra": {}
+    "messages": []
   },
-  "input_state": {
-    "messages": [],
-    "system_prompt": null,
-    "rag_chunks": [],
-    "graph_state": {
-      "q": "pricing"
-    }
-  },
-  "action_result": {
-    "tool_calls": [],
-    "completion": "{'results': ['doc about pricing'], 'q': 'pricing'}",
-    "finish_reason": null,
-    "token_usage": {},
-    "raw_response": {
+  "output": {
+    "value": {
+      "query": "token governance",
       "results": [
-        "doc about pricing"
-      ],
-      "q": "pricing"
+        "result for token governance"
+      ]
     },
-    "error": null,
-    "error_type": null
+    "llm": null
   },
-  "dims": {
+  "attributes": {
     "session_id": "sess_subagent_x2",
     "message_id": "msg_042",
     "user_id": "dev",
     "scenario": "parent_calls_subagent_twice",
-    "boundary_kind": "tool",
-    "node_id": "web_search"
+    "chronicle.trace.name": "parent-calls-subagent-twice",
+    "chronicle.input.schema": "{\"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"], \"type\": \"object\"}",
+    "chronicle.output.schema": "{\"additionalProperties\": true, \"type\": \"object\"}"
   }
 }

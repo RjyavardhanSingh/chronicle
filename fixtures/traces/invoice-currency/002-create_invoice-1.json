@@ -1,47 +1,31 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "1a674dae-2e50-48a7-bb73-7c110dd451a8",
-  "trace_id": "trace-invoice-currency-001",
-  "node_id": "create_invoice",
-  "boundary_kind": "tool",
-  "parent_envelope_id": "b99454ef-9ade-4d77-9ccd-21b258e744d5",
+  "schema_version": "2.0",
+  "envelope_id": "71138c619e6a5bb9",
+  "trace_id": "2a93cca4a73be4b0c3a216edab4d7325",
+  "name": "create_invoice",
+  "kind": "tool",
+  "parent_envelope_id": null,
   "sequence": 2,
   "invocation_index": 1,
-  "timestamp": "2026-06-19T07:15:06.860387Z",
-  "metadata": {
-    "model_version": "demo-model",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
-    },
-    "build_id": "financial-demo-invoice-currency",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "create_invoice",
-    "trace_id": "trace-invoice-currency-001",
-    "extra": {}
+  "start_time": "2026-09-20T15:02:08.633154Z",
+  "end_time": "2026-09-20T15:02:08.633196Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
   },
-  "input_state": {
-    "messages": [],
-    "system_prompt": null,
-    "rag_chunks": [],
-    "graph_state": {
+  "input": {
+    "arguments": {
       "customer_id": "acme-corp",
       "amount_cents": 200000000,
       "currency": "USD",
       "contract_currency": "EUR",
-      "contract_amount_cents": 200000000
-    }
+      "contract_amount_cents": 200000000,
+      "max_invoice_cents": 10000000
+    },
+    "messages": []
   },
-  "action_result": {
-    "tool_calls": [],
-    "completion": "sent",
-    "finish_reason": null,
-    "token_usage": {},
-    "raw_response": {
+  "output": {
+    "value": {
       "status": "sent",
       "blocked": false,
       "customer_id": "acme-corp",
@@ -49,6 +33,12 @@
       "currency": "USD",
       "contract_currency": "EUR",
       "message": "Invoice sent to acme-corp for 2,000,000.00 USD"
-    }
+    },
+    "llm": null
+  },
+  "attributes": {
+    "chronicle.trace.name": "trace-invoice-currency-001",
+    "chronicle.input.schema": "{\"properties\": {\"amount_cents\": {\"type\": \"integer\"}, \"currency\": {\"type\": \"string\"}, \"customer_id\": {\"type\": \"string\"}}, \"required\": [\"customer_id\", \"amount_cents\", \"currency\"], \"type\": \"object\"}",
+    "chronicle.output.schema": "{\"additionalProperties\": true, \"type\": \"object\"}"
   }
 }

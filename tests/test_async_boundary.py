@@ -25,9 +25,9 @@ def test_async_boundary_records_like_sync():
     session, out = asyncio.run(run())
     assert out["completion"] == "ok"
     env = session._recorded_envelopes[-1]
-    assert env.boundary_kind == "llm"
-    assert env.metadata.model_version == "gpt-4o"
-    assert env.metadata.sampling_params.temperature == 0.1
+    assert env.kind == "llm"
+    assert env.model == "gpt-4o"
+    assert env.attributes["gen_ai.request.temperature"] == 0.1
 
 
 @pytest.mark.layer1
@@ -56,8 +56,11 @@ def test_concurrent_async_traces_are_isolated():
     assert len(sa._recorded_envelopes) == 2
     assert len(sb._recorded_envelopes) == 2
     # No cross-talk: each session only holds its own trace.
-    assert all(e.trace_id == "trace-a" for e in sa._recorded_envelopes)
-    assert all(e.trace_id == "trace-b" for e in sb._recorded_envelopes)
+    assert sa.trace_id != sb.trace_id
+    assert all(e.trace_id == sa.trace_id for e in sa._recorded_envelopes)
+    assert all(e.trace_id == sb.trace_id for e in sb._recorded_envelopes)
+    assert {e.attributes["chronicle.trace.name"] for e in sa._recorded_envelopes} == {"trace-a"}
+    assert {e.attributes["chronicle.trace.name"] for e in sb._recorded_envelopes} == {"trace-b"}
 
 
 @pytest.mark.layer1
@@ -75,9 +78,9 @@ def test_async_failure_records_error_and_reraises():
 
     session = asyncio.run(run())
     env = session._recorded_envelopes[-1]
-    assert env.action_result.error == "nope"
-    assert env.action_result.error_type == "ValueError"
-    assert env.action_result.finish_reason == "error"
+    assert env.status.code == "ERROR"
+    assert env.status.message == "nope"
+    assert env.attributes["error.type"] == "ValueError"
 
 
 @pytest.mark.layer1

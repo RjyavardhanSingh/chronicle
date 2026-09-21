@@ -59,8 +59,8 @@ def test_bind_input_coerces_every_message_not_just_first():
     with chronicle.record("t") as session:
         agent(mixed)
 
-    recorded = session._recorded_envelopes[-1].input_state.messages
-    assert recorded[0] == {"role": "user", "content": "hi"}
-    assert recorded[1]["role"] == "assistant"
-    assert recorded[1]["name"] == "bot"
-    assert recorded[1]["tool_calls"] == []
+    recorded = session._recorded_envelopes[-1].input.messages
+    assert recorded[0].model_dump() == {"role": "user", "content": "hi"}
+    assert recorded[1].role == "assistant"
+    assert recorded[1].name == "bot"
+    assert recorded[1].tool_calls == []

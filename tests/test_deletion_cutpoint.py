@@ -46,7 +46,7 @@ def test_cutpoint_delete_file_blocks_prod(incident_graph):
     )
 
     # --- upstream fidelity: agent_plan stubbed from incident fixture ---
-    agent_calls = [c for c in session.call_log() if c.boundary_id == "agent"]
+    agent_calls = [c for c in session.call_log() if c.name == "agent"]
     assert len(agent_calls) == 2
     assert agent_calls[0].mode == "stub"
     assert agent_calls[1].mode == "live"
@@ -55,9 +55,9 @@ def test_cutpoint_delete_file_blocks_prod(incident_graph):
     prod_delete = graph.envelope("delete_file", invocation_index=1)
     live_input = session.captured_input("delete_file", 1)
     assert live_input is not None
-    assert live_input.graph_state["path"] == "/prod/logs/app.log"
-    assert live_input.graph_state["environment"] == "prod"
-    assert live_input.graph_state == prod_delete.input_state.graph_state
+    assert live_input.arguments["path"] == "/prod/logs/app.log"
+    assert live_input.arguments["environment"] == "prod"
+    assert live_input.arguments == prod_delete.input.arguments
 
     # --- cut-point output: gated tool blocks prod (the fix) ---
     live_result = session.captured_result("delete_file", 1)

@@ -1,39 +1,20 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "0867c134-9f86-479e-a350-34b27679a93a",
-  "trace_id": "trace-trade-notional-001",
-  "node_id": "agent",
-  "boundary_kind": "llm",
+  "schema_version": "2.0",
+  "envelope_id": "fc577eccda3d4e24",
+  "trace_id": "fb7d0bdc9ba7658659250f64df0706b0",
+  "name": "agent",
+  "kind": "llm",
   "parent_envelope_id": null,
   "sequence": 1,
   "invocation_index": 1,
-  "timestamp": "2026-06-19T10:49:06.460667Z",
-  "metadata": {
-    "model_version": "demo-model",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
-    },
-    "build_id": "financial-demo-trade-notional",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "agent",
-    "trace_id": "trace-trade-notional-001",
-    "extra": {}
+  "start_time": "2026-09-20T15:02:08.640456Z",
+  "end_time": "2026-09-20T15:02:08.640607Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
   },
-  "input_state": {
-    "messages": [
-      {
-        "role": "user",
-        "content": "Sell about $1,000 of ACME from my portfolio to rebalance."
-      }
-    ],
-    "system_prompt": "You are a portfolio management agent.",
-    "rag_chunks": [],
-    "graph_state": {
+  "input": {
+    "arguments": {
       "messages": [
         {
           "role": "user",
@@ -48,23 +29,34 @@
       "finish_reason": "",
       "filled": false,
       "blocked": false
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Sell about $1,000 of ACME from my portfolio to rebalance."
+      }
+    ]
+  },
+  "output": {
+    "value": null,
+    "llm": {
+      "text": "I'll sell $1,000.00 worth of ACME.",
+      "tool_calls": [
+        {
+          "id": "call_order_1",
+          "name": "place_order",
+          "arguments": {
+            "symbol": "ACME",
+            "quantity": 1000,
+            "side": "sell"
+          }
+        }
+      ],
+      "finish_reason": "tool_calls",
+      "usage": null
     }
   },
-  "action_result": {
-    "tool_calls": [
-      {
-        "id": "call_order_1",
-        "name": "place_order",
-        "arguments": {
-          "symbol": "ACME",
-          "quantity": 1000,
-          "side": "sell"
-        }
-      }
-    ],
-    "completion": "I'll sell $1,000.00 worth of ACME.",
-    "finish_reason": "tool_calls",
-    "token_usage": {},
-    "raw_response": null
+  "attributes": {
+    "chronicle.trace.name": "trace-trade-notional-001"
   }
 }

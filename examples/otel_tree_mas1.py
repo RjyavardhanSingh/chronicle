@@ -40,11 +40,11 @@ def _wrap_stub(client: StubClient):
         return client.complete(model, messages, **kwargs)
 
     def extract_input(model, messages, **kwargs):
-        from chronicle.envelope.schema import InputState
+        from chronicle.envelope.schema import Input
 
-        return InputState(
+        return Input(
             messages=[{"role": m.role, "content": m.content} for m in messages],
-            graph_state={"model": model},
+            arguments={"model": model},
         )
 
     def extract_result(resp: ModelResponse):
@@ -114,7 +114,7 @@ def main() -> None:
     sink = NullSink()
     cfg = RunConfig()
 
-    dims = {
+    attributes = {
         "session_id": "sess_mas1_demo",
         "message_id": "msg_001",
         "user_id": "dev",
@@ -125,7 +125,7 @@ def main() -> None:
     with chronicle.record(
         "mas1-otel-tree",
         store=JsonlStore(store_path),
-        dims=dims,
+        attributes=attributes,
         export=OUT / "trace",
     ) as session:
         graph = build_instrumented_graph(client, sink, cfg)

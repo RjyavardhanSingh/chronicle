@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from chronicle.boundary import wrap_llm
-from chronicle.envelope.schema import InputState
+from chronicle.envelope.schema import Input
 from chronicle.replay.plan import ReplayPlan
 from chronicle.session import reset_session
 
@@ -43,13 +43,13 @@ def test_wrap_llm_records_envelope_kind_llm():
     assert out["completion"] == "openai/gpt-4o-mini:1"
     assert len(session._recorded_envelopes) == 1
     env = session._recorded_envelopes[0]
-    assert env.boundary_kind == "llm"
-    assert env.node_id == "agent.chat"
-    assert env.metadata.model_version == "gpt-4o-mini"
-    assert env.metadata.sampling_params.temperature == 0.2
-    assert env.input_state.messages == [{"role": "user", "content": "hi"}]
-    assert env.input_state.graph_state["provider"] == "openai"
-    assert env.input_state.graph_state["model"] == "gpt-4o-mini"
+    assert env.kind == "llm"
+    assert env.name == "agent.chat"
+    assert env.model == "gpt-4o-mini"
+    assert env.attributes["gen_ai.request.temperature"] == 0.2
+    assert [m.model_dump() for m in env.input.messages] == [{"role": "user", "content": "hi"}]
+    assert env.input.arguments["provider"] == "openai"
+    assert env.input.arguments["model"] == "gpt-4o-mini"
 
 
 @pytest.mark.layer1
@@ -58,8 +58,8 @@ def test_wrap_llm_invokes_on_crossing_with_kind_llm():
     session.enable_live()
     crossings: list[tuple] = []
 
-    def hook(boundary_id, kind, input_state, result):
-        crossings.append((boundary_id, kind, input_state, result))
+    def hook(name, kind, input, result):
+        crossings.append((name, kind, input, result))
 
     session.on_crossing = hook
     traced = wrap_llm("planner.chat", _complete)
@@ -70,8 +70,8 @@ def test_wrap_llm_invokes_on_crossing_with_kind_llm():
     bid, kind, inp, result = crossings[0]
     assert bid == "planner.chat"
     assert kind == "llm"
-    assert isinstance(inp, InputState)
-    assert inp.messages[0]["content"] == "plan"
+    assert isinstance(inp, Input)
+    assert inp.messages[0].content == "plan"
     assert result == out
 
 
@@ -90,9 +90,9 @@ def test_wrap_llm_messages_only_signature():
 
     assert out["completion"] == "hello"
     assert len(session._recorded_envelopes) == 1
-    assert session._recorded_envelopes[0].boundary_kind == "llm"
+    assert session._recorded_envelopes[0].kind == "llm"
     assert crossings[0][1] == "llm"
-    assert crossings[0][2].messages[0]["content"] == "hello"
+    assert crossings[0][2].messages[0].content == "hello"
 
 
 @pytest.mark.layer1
@@ -151,7 +151,7 @@ def test_wrap_llm_live_cutpoint_fires_on_crossing(tmp_path):
     bid, kind, inp, result = crossings[0]
     assert bid == "agent.chat"
     assert kind == "llm"
-    assert inp.messages[0]["content"] == "cutpoint"
+    assert inp.messages[0].content == "cutpoint"
     assert session.captured_result("agent.chat", 1) == result
 
 
@@ -160,10 +160,10 @@ def test_wrap_llm_custom_extract_input():
     session = reset_session()
     session.enable_live()
 
-    def extract_input(prompt: str) -> InputState:
-        return InputState(
+    def extract_input(prompt: str) -> Input:
+        return Input(
             messages=[{"role": "user", "content": prompt}],
-            graph_state={"prompt": prompt},
+            arguments={"prompt": prompt},
         )
 
     def complete(prompt: str) -> dict:
@@ -174,5 +174,5 @@ def test_wrap_llm_custom_extract_input():
 
     assert out["completion"] == "HI"
     env = session._recorded_envelopes[0]
-    assert env.boundary_kind == "llm"
-    assert env.input_state.graph_state["prompt"] == "hi"
+    assert env.kind == "llm"
+    assert env.input.arguments["prompt"] == "hi"

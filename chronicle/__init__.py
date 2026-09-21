@@ -4,15 +4,16 @@ from chronicle.api import record, replay_trace
 from chronicle.boundary import boundary, wrap_llm
 from chronicle.config import is_enabled
 from chronicle.envelope.schema import (
-    ActionResult,
-    ContextMetadata,
     Envelope,
-    InputState,
-    RagChunk,
-    SamplingParams,
+    Input,
+    LLMOutput,
+    Message,
+    Output,
+    Status,
     ToolCall,
-    ToolSchema,
+    Usage,
 )
+from chronicle.envelope.genai import LLMRequest, SamplingParams
 from chronicle.envelope.backends import (
     BufferedStore,
     JsonlStore,
@@ -42,25 +43,27 @@ def __getattr__(name: str):
 
 
 __all__ = [
-    "ActionResult",
     "BoundaryMode",
     "BufferedStore",
     "ChronicleSession",
-    "ContextMetadata",
     "Envelope",
     "EnvelopeStore",
     "ExecutionGraph",
-    "InputState",
+    "Input",
     "JsonlStore",
-    "RagChunk",
+    "LLMOutput",
+    "LLMRequest",
+    "Message",
+    "Output",
     "RemoteStore",
     "ReplayPlan",
     "SamplingParams",
     "SessionMode",
     "SqliteStore",
+    "Status",
     "Store",
     "ToolCall",
-    "ToolSchema",
+    "Usage",
     "apply_redactors",
     "boundary",
     "default_redactors",

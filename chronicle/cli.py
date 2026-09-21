@@ -8,7 +8,7 @@ import sys
 import click
 
 from chronicle import __version__
-from chronicle.envelope.schema import Envelope
+from chronicle.envelope.schema import Envelope, LLMOutput
 from chronicle.envelope.store import EnvelopeStore
 from chronicle.judge.runner import JudgeRunner, MockJudgeClient, OpenAIJudgeClient
 from chronicle.replay.injector import ReplayInjector
@@ -43,7 +43,7 @@ def record(store: str, phoenix: bool, service: str) -> None:
 
     click.echo(f"Envelope store: {store}")
     click.echo("Set CHRONICLE_BUILD_ID to pin runtime build metadata.")
-    click.echo("Recording ready — instrument your agent nodes with EnvelopeRecorder.")
+    click.echo("Recording ready — wrap your agent with chronicle.record() and @boundary.")
 
 
 @main.command()
@@ -75,12 +75,12 @@ def replay(fixture: str) -> None:
 
     def _identity_agent(state: dict, inj: ReplayInjector) -> dict:
         completion = inj.stub_llm()
-        for tc in envelope.action_result.tool_calls:
+        for tc in (envelope.output.llm or LLMOutput()).tool_calls:
             inj.stub_tool(tc.name, tc.arguments)
         return {
-            "completion": completion.completion,
-            "finish_reason": completion.finish_reason,
-            "tool_calls": [tc.model_dump() for tc in completion.tool_calls],
+            "completion": (completion.llm or LLMOutput()).text,
+            "finish_reason": (completion.llm or LLMOutput()).finish_reason,
+            "tool_calls": [tc.model_dump() for tc in (completion.llm or LLMOutput()).tool_calls],
         }
 
     result, ctx, assertions = injector.replay(_identity_agent)
@@ -171,7 +171,7 @@ def list_fixtures(directory: str) -> None:
         return
     for p in paths:
         envelope = Envelope.from_file(str(p))
-        click.echo(f"{p.name}  trace={envelope.trace_id}  node={envelope.node_id}")
+        click.echo(f"{p.name}  trace={envelope.trace_id}  name={envelope.name}")
 
 
 if __name__ == "__main__":

@@ -1,53 +1,41 @@
 {
-  "schema_version": "1.0",
-  "envelope_id": "5feec2ff-ddef-46c6-a4e1-5c5e9caf0ea1",
-  "trace_id": "trace-parent-calls-subagent-twice",
-  "node_id": "researcher",
-  "boundary_kind": "custom",
-  "parent_envelope_id": "0c707775-33af-4885-9d6d-ce23018b7036",
+  "schema_version": "2.0",
+  "envelope_id": "4c106742645f9c7e",
+  "trace_id": "91d219852d914be735a7ca7351cf4d4b",
+  "name": "researcher",
+  "kind": "custom",
+  "parent_envelope_id": "0287549509d04aa5",
   "sequence": 3,
   "invocation_index": 1,
-  "timestamp": "2026-08-10T15:22:50.927009Z",
-  "started_at": "2026-08-10T15:22:50.852172Z",
-  "metadata": {
-    "model_version": "unknown",
-    "sampling_params": {
-      "temperature": null,
-      "top_p": null,
-      "max_tokens": null,
-      "seed": null,
-      "extra": {}
+  "start_time": "2026-09-20T15:02:11.232728Z",
+  "end_time": "2026-09-20T15:02:11.254975Z",
+  "status": {
+    "code": "UNSET",
+    "message": null
+  },
+  "input": {
+    "arguments": {
+      "topic": "token governance"
     },
-    "build_id": "dev-local",
-    "tool_schemas": [],
-    "framework": "chronicle.boundary",
-    "node_id": "researcher",
-    "trace_id": "trace-parent-calls-subagent-twice",
-    "extra": {}
+    "messages": []
   },
-  "input_state": {
-    "messages": [],
-    "system_prompt": null,
-    "rag_chunks": [],
-    "graph_state": {
-      "query": "pricing"
-    }
+  "output": {
+    "value": {
+      "topic": "token governance",
+      "plan": "Plan: search for 'token governance'",
+      "results": [
+        "result for token governance"
+      ]
+    },
+    "llm": null
   },
-  "action_result": {
-    "tool_calls": [],
-    "completion": "findings:doc about pricing",
-    "finish_reason": null,
-    "token_usage": {},
-    "raw_response": null,
-    "error": null,
-    "error_type": null
-  },
-  "dims": {
+  "attributes": {
     "session_id": "sess_subagent_x2",
     "message_id": "msg_042",
     "user_id": "dev",
     "scenario": "parent_calls_subagent_twice",
-    "boundary_kind": "custom",
-    "node_id": "researcher"
+    "chronicle.trace.name": "parent-calls-subagent-twice",
+    "chronicle.input.schema": "{\"properties\": {\"topic\": {\"type\": \"string\"}}, \"required\": [\"topic\"], \"type\": \"object\"}",
+    "chronicle.output.schema": "{\"additionalProperties\": true, \"type\": \"object\"}"
   }
 }

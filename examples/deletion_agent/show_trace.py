@@ -73,18 +73,19 @@ def main() -> None:
     print("TIMELINE DETAIL")
     print("-" * 60)
     for env in graph.timeline():
-        print(f"\n[{env.sequence}] {env.node_id}#{env.invocation_index} ({env.boundary_kind})")
+        print(f"\n[{env.sequence}] {env.name}#{env.invocation_index} ({env.kind})")
         print(f"  envelope_id: {env.envelope_id}")
         if env.parent_envelope_id:
             print(f"  parent:      {env.parent_envelope_id}")
-        print(f"  input:       {env.input_state.graph_state.get('environment', env.input_state.messages)}")
-        if env.action_result.tool_calls:
-            for tc in env.action_result.tool_calls:
+        print(f"  input:       {env.input.arguments.get('environment', [m.content for m in env.input.messages])}")
+        llm = env.output.llm
+        if llm:
+            for tc in llm.tool_calls:
                 print(f"  tool_call:   {tc.name}({tc.arguments})")
-        if env.action_result.raw_response:
-            print(f"  result:      {env.action_result.raw_response}")
-        elif env.action_result.completion:
-            print(f"  completion:  {env.action_result.completion}")
+        if env.output.value:
+            print(f"  result:      {env.output.value}")
+        elif llm and llm.text:
+            print(f"  completion:  {llm.text}")
 
 
 if __name__ == "__main__":

@@ -116,9 +116,8 @@ def _record_incident(mod: ModuleType, workdir: Path) -> tuple[Path, int, int]:
     mod.set_mode("ungated")
     store_path = workdir / f"{mod.NAME}.jsonl"
     session = reset_session()
-    session.build_id = f"bench-{mod.NAME}"
     session.store = EnvelopeStore(store_path)
-    session.begin_trace(mod.TRACE_ID)
+    session.begin_trace(mod.TRACE_NAME)
     mod.run_agent()
     trace_dir = workdir / mod.NAME
     session.export_trace(trace_dir)
@@ -142,7 +141,7 @@ def _measure_overhead(mod: ModuleType) -> tuple[float, float]:
     def rec() -> None:
         session = reset_session()
         session.store = None  # in-memory recording only
-        session.begin_trace(mod.TRACE_ID)
+        session.begin_trace(mod.TRACE_NAME)
         mod.run_agent()
 
     t_rec = _best_time(rec)

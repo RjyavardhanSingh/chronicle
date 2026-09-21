@@ -9,14 +9,14 @@ from __future__ import annotations
 from typing import Any
 
 from chronicle.boundary import boundary
-from chronicle.envelope.schema import InputState, ToolCall
+from chronicle.envelope.schema import Input, ToolCall
 from examples.financial_incidents._helpers import agent_input, fmt_usd
 
 # ungated = record incident | gated = cut-point fix
 _mode = "ungated"
 
 NAME = "refund-order-id"
-TRACE_ID = "trace-refund-order-id-001"
+TRACE_NAME = "trace-refund-order-id-001"
 TOOL = "issue_refund"
 ORDER_ID = "9847261"
 ORDER_TOTAL_CENTS = 4_700  # $47.00
@@ -38,12 +38,11 @@ def safe(result: dict[str, Any], live: dict[str, Any]) -> bool:
     return bool(live.get("blocked")) and result.get("refunded") is False
 
 
-def _refund_input(*args, **kwargs) -> InputState:
+def _refund_input(*args, **kwargs) -> Input:
     order_id = args[0] if args else kwargs["order_id"]
     amount_cents = args[1] if len(args) > 1 else kwargs["amount_cents"]
-    return InputState(
-        messages=[],
-        graph_state={
+    return Input(
+        arguments={
             "order_id": order_id,
             "amount_cents": amount_cents,
             "order_total_cents": ORDER_TOTAL_CENTS,

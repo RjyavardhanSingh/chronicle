@@ -2,127 +2,57 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-class SamplingParams(BaseModel):
-    temperature: float | None = None
-    top_p: float | None = None
-    max_tokens: int | None = None
-    seed: int | None = None
-    extra: dict[str, Any] = Field(default_factory=dict)
-
-
-class ToolSchema(BaseModel):
-    name: str
-    description: str | None = None
-    parameters: dict[str, Any] = Field(default_factory=dict)
-
-
-class ContextMetadata(BaseModel):
-    """Pinned runtime context — model version must be resolved, not an alias."""
-
-    model_version: str
-    sampling_params: SamplingParams = Field(default_factory=SamplingParams)
-    build_id: str
-    tool_schemas: list[ToolSchema] = Field(default_factory=list)
-    framework: str | None = None
-    node_id: str | None = None
-    trace_id: str | None = None
-    extra: dict[str, Any] = Field(default_factory=dict)
-
-
-class RagChunk(BaseModel):
-    chunk_id: str
-    content: str
-    source: str | None = None
-    score: float | None = None
-    index_version: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class InputState(BaseModel):
-    """Full assembled prompt and retrieved context at the graph boundary."""
-
-    messages: list[dict[str, Any]]
-    system_prompt: str | None = None
-    rag_chunks: list[RagChunk] = Field(default_factory=list)
-    graph_state: dict[str, Any] = Field(default_factory=dict)
-
-    @property
-    def content_hash(self) -> str:
-        payload = json.dumps(
-            {
-                "messages": self.messages,
-                "system_prompt": self.system_prompt,
-                "rag_chunks": [c.model_dump() for c in self.rag_chunks],
-            },
-            sort_keys=True,
-            default=str,
-        )
-        return hashlib.sha256(payload.encode()).hexdigest()
-
-
-class ToolCall(BaseModel):
-    id: str | None = None
-    name: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
-
-
-class ActionResult(BaseModel):
-    """Structured tool calls and model completion emitted at this boundary."""
-
-    tool_calls: list[ToolCall] = Field(default_factory=list)
-    completion: str | None = None
-    finish_reason: str | None = None
-    token_usage: dict[str, int] = Field(default_factory=dict)
-    raw_response: dict[str, Any] | None = None
-    # Set when the boundary raised. Optional and default None, so pre-0.2
-    # envelopes still load unchanged.
-    error: str | None = None
-    error_type: str | None = None
+from chronicle.envelope.genai import (
+    CHRONICLE_INPUT_SCHEMA,
+    CHRONICLE_OUTPUT_SCHEMA,
+    GEN_AI_REQUEST_MODEL,
+    AttributeValue,
+)
+from chronicle.ids import new_span_id, new_trace_id, validate_span_id, validate_trace_id
 
 
 class Envelope(BaseModel):
     """
     Immutable, append-only record of a single graph-boundary execution.
 
-    Every envelope captures contextual metadata, input state, and action/result
-    at the intersection of agent nodes — the "flight data" of the agent.
+    Every envelope captures the boundary's input, its output and its span attributes at
+    the intersection of agent nodes — the "flight data" of the agent.
 
-    OTel mapping: ``trace_id`` is the Trace; ``envelope_id`` is the Span id;
-    ``parent_envelope_id`` is ``parent_span_id``. ``dims`` are flat string
-    attributes (trace-level dims are copied onto every span at record time;
-    envelope-level dims are span-specific).
+    OTel mapping: ``trace_id`` is the OTel trace id (32 lowercase hex chars);
+    ``envelope_id`` is the span id (16 lowercase hex chars); ``parent_envelope_id``
+    is ``parent_span_id``. Both are validated to OTel's byte formats, so an envelope
+    exports as a span without translating ids. Other span fields use OTel names:
+    ``name`` (the boundary name), ``kind`` (llm / tool / router / custom),
+    ``start_time`` / ``end_time``, ``status`` and ``attributes`` (trace-level ones are
+    copied onto every span at record time, envelope-level ones are span-specific).
+    ``span_id`` and ``parent_span_id`` are read-only getters for ``envelope_id`` and
+    ``parent_envelope_id``; ``model`` reads the GenAI attributes.
     """
 
-    schema_version: str = "1.0"
-    envelope_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    trace_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    node_id: str
-    boundary_kind: str = "custom"
+    schema_version: str = "2.0"
+    envelope_id: str = Field(default_factory=new_span_id)
+    trace_id: str = Field(default_factory=new_trace_id)
+    name: str
+    kind: str = "custom"
     parent_envelope_id: str | None = None
     sequence: int = 0
     invocation_index: int = 1
-    # End time (when the envelope was written). Prefer ``started_at`` for span start.
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    # Span start (OTel). None on pre-nest fixtures; waterfall falls back to timestamp.
-    started_at: datetime | None = None
-    metadata: ContextMetadata
-    input_state: InputState
-    action_result: ActionResult
-    # Flat string→string attributes (OTel-style). Missing on pre-0.4 fixtures.
-    dims: dict[str, str] = Field(default_factory=dict)
-
-    @property
-    def boundary_id(self) -> str:
-        return self.node_id
+    # Span start (OTel). None when no span was opened; the waterfall falls back to end_time.
+    start_time: datetime | None = None
+    # Span end: when the envelope was written.
+    end_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: Status = Field(default_factory=lambda: Status())
+    input: Input
+    output: Output
+    # OTel span attributes: primitives or lists of primitives. Model, sampling and tool
+    # definitions live here under the GenAI semantic-convention keys.
+    attributes: dict[str, AttributeValue] = Field(default_factory=dict)
 
     @property
     def span_id(self) -> str:
@@ -134,9 +64,42 @@ class Envelope(BaseModel):
         """OTel alias for ``parent_envelope_id``."""
         return self.parent_envelope_id
 
-    @field_validator("timestamp", mode="before")
+    @property
+    def model(self) -> str | None:
+        """The model this call ran with (``gen_ai.request.model``), if recorded."""
+        value = self.attributes.get(GEN_AI_REQUEST_MODEL)
+        return value if isinstance(value, str) else None
+
+    @property
+    def input_schema(self) -> dict[str, Any] | None:
+        """JSON schema of the boundary method's input, for method boundaries."""
+        return _json_attribute(self.attributes.get(CHRONICLE_INPUT_SCHEMA))
+
+    @property
+    def output_schema(self) -> dict[str, Any] | None:
+        """JSON schema of the boundary method's return type, when it is annotated."""
+        return _json_attribute(self.attributes.get(CHRONICLE_OUTPUT_SCHEMA))
+
+    @field_validator("trace_id")
     @classmethod
-    def _ensure_utc(cls, v: datetime | str) -> datetime:
+    def _check_trace_id(cls, v: str) -> str:
+        return validate_trace_id(v)
+
+    @field_validator("envelope_id")
+    @classmethod
+    def _check_envelope_id(cls, v: str) -> str:
+        return validate_span_id(v)
+
+    @field_validator("parent_envelope_id")
+    @classmethod
+    def _check_parent_envelope_id(cls, v: str | None) -> str | None:
+        return None if v is None else validate_span_id(v)
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _ensure_utc(cls, v: datetime | str | None) -> datetime | None:
+        if v is None:
+            return None
         if isinstance(v, str):
             v = datetime.fromisoformat(v.replace("Z", "+00:00"))
         if v.tzinfo is None:
@@ -162,3 +125,76 @@ class Envelope(BaseModel):
     @staticmethod
     def json_schema() -> dict[str, Any]:
         return Envelope.model_json_schema()
+
+
+class Status(BaseModel):
+    """OTel span status. ``UNSET`` by default; ``ERROR`` (with a message) when the
+    boundary raised. The exception class goes in the ``error.type`` attribute."""
+
+    code: Literal["UNSET", "OK", "ERROR"] = "UNSET"
+    message: str | None = None
+
+
+class Input(BaseModel):
+    """What the boundary was called with.
+
+    ``arguments`` is the annotated method's (or wrapped call's) arguments by name: the
+    single source of truth that replay and assertions read. ``messages`` is the typed
+    chat view, filled for LLM boundaries only.
+    """
+
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    messages: list[Message] = Field(default_factory=list)
+
+
+class Message(BaseModel):
+    """One chat message. Extra provider fields (``name``, ``tool_call_id`` ...) are kept."""
+
+    model_config = ConfigDict(extra="allow")
+
+    role: str
+    content: Any = None
+
+
+class Output(BaseModel):
+    """What the boundary returned.
+
+    ``value`` is the JSON-safe return value (what replay hands back for tools, routers and
+    custom boundaries). ``llm`` bundles the normalized LLM response and is set for LLM
+    boundaries only.
+    """
+
+    value: Any = None
+    llm: LLMOutput | None = None
+
+
+class LLMOutput(BaseModel):
+    """The LLM-shaped view of a response, whatever provider produced it."""
+
+    text: str | None = None
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+    finish_reason: str | None = None
+    usage: Usage | None = None
+
+
+class ToolCall(BaseModel):
+    id: str | None = None
+    name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class Usage(BaseModel):
+    """Normalized token counts (providers report these under different keys)."""
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
+def _json_attribute(raw: Any) -> dict[str, Any] | None:
+    if not isinstance(raw, str):
+        return None
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None

@@ -11,13 +11,13 @@ from __future__ import annotations
 from typing import Any
 
 from chronicle.boundary import boundary
-from chronicle.envelope.schema import InputState, ToolCall
+from chronicle.envelope.schema import Input, ToolCall
 from examples.financial_incidents._helpers import agent_input
 
 _mode = "ungated"
 
 NAME = "prod-delete"
-TRACE_ID = "trace-prod-delete-001"
+TRACE_NAME = "trace-prod-delete-001"
 TOOL = "delete_dataset"
 DATASET = "events_2024"
 ENVIRONMENT = "prod"
@@ -37,12 +37,11 @@ def safe(result: dict[str, Any], live: dict[str, Any]) -> bool:
     return bool(live.get("blocked")) and result.get("deleted") is False
 
 
-def _delete_input(*args, **kwargs) -> InputState:
+def _delete_input(*args, **kwargs) -> Input:
     dataset = args[0] if args else kwargs["dataset"]
     environment = args[1] if len(args) > 1 else kwargs["environment"]
-    return InputState(
-        messages=[],
-        graph_state={"dataset": dataset, "environment": environment},
+    return Input(
+        arguments={"dataset": dataset, "environment": environment},
     )
 
 

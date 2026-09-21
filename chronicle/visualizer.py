@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 
+from chronicle.envelope.schema import LLMOutput
 from chronicle.execution_graph import ExecutionGraph
 
 _KIND_COLORS = {
@@ -20,37 +21,35 @@ _KIND_COLORS = {
 def _envelope_summary(envelope) -> dict[str, Any]:
     env = envelope
     full_envelope = json.loads(env.model_dump_json())
+    llm = env.output.llm or LLMOutput()
     detail: dict[str, Any] = {
         "envelope_id": env.envelope_id,
         "short_id": env.envelope_id[:8],
-        "boundary_id": env.node_id,
-        "boundary_kind": env.boundary_kind,
+        "name": env.name,
+        "kind": env.kind,
         "invocation_index": env.invocation_index,
         "sequence": env.sequence,
         "parent_envelope_id": env.parent_envelope_id,
         "parent_short_id": env.parent_envelope_id[:8] if env.parent_envelope_id else None,
-        "kind_color": _KIND_COLORS.get(env.boundary_kind, "#6b7280"),
+        "kind_color": _KIND_COLORS.get(env.kind, "#6b7280"),
         "full_envelope": full_envelope,
-        "messages": env.input_state.messages,
-        "graph_state": env.input_state.graph_state,
-        "system_prompt": env.input_state.system_prompt,
-        "tool_calls": [tc.model_dump() for tc in env.action_result.tool_calls],
-        "completion": env.action_result.completion,
-        "finish_reason": env.action_result.finish_reason,
-        "raw_response": env.action_result.raw_response,
-        "model_version": env.metadata.model_version,
-        "build_id": env.metadata.build_id,
+        "messages": [m.model_dump() for m in env.input.messages],
+        "arguments": env.input.arguments,
+        "tool_calls": [tc.model_dump() for tc in llm.tool_calls],
+        "completion": llm.text,
+        "finish_reason": llm.finish_reason,
+        "value": env.output.value,
+        "model": env.model,
     }
-    if env.action_result.tool_calls:
-        tc = env.action_result.tool_calls[0]
+    if llm.tool_calls:
+        tc = llm.tool_calls[0]
         detail["headline"] = f"tool_call({tc.name})"
-    elif env.action_result.raw_response:
-        status = env.action_result.raw_response.get("status", "")
-        detail["headline"] = str(status)
-    elif env.action_result.completion:
-        detail["headline"] = env.action_result.completion[:72]
+    elif isinstance(env.output.value, dict) and env.output.value:
+        detail["headline"] = str(env.output.value.get("status", ""))
+    elif llm.text:
+        detail["headline"] = llm.text[:72]
     else:
-        detail["headline"] = env.boundary_kind
+        detail["headline"] = env.kind
     return detail
 
 
@@ -60,7 +59,7 @@ def render_trace_html(graph: ExecutionGraph, *, title: str | None = None) -> str
     nodes_json = json.dumps(nodes)
     mermaid = graph.to_mermaid()
     mermaid_clicks = [
-        f'    click {n["short_id"]} selectByShortId "{n["boundary_id"]}@{n["invocation_index"]}"'
+        f'    click {n["short_id"]} selectByShortId "{n["name"]}@{n["invocation_index"]}"'
         for n in nodes
     ]
     page_title = title or f"Chronicle — {graph.trace_id}"
@@ -72,7 +71,7 @@ def render_trace_html(graph: ExecutionGraph, *, title: str | None = None) -> str
         "    classDef custom fill:#2a1f4a,stroke:#8b5cf6,color:#e8ecf4",
     ]
     for n in nodes:
-        kind = n["boundary_kind"] if n["boundary_kind"] in _KIND_COLORS else "custom"
+        kind = n["kind"] if n["kind"] in _KIND_COLORS else "custom"
         mermaid_classes.append(f"    class {n['short_id']} {kind}")
 
     return f"""<!DOCTYPE html>
@@ -362,26 +361,26 @@ def render_trace_html(graph: ExecutionGraph, *, title: str | None = None) -> str
 
     function renderOverview(node) {{
       let resultClass = "";
-      if (node.raw_response?.status === "deleted") resultClass = "status-deleted";
-      if (node.raw_response?.status === "blocked") resultClass = "status-blocked";
+      if (node.value?.status === "deleted") resultClass = "status-deleted";
+      if (node.value?.status === "blocked") resultClass = "status-blocked";
 
       return `
         <div class="detail-grid">
           <div class="card">
             <h3>Boundary</h3>
-            <pre>${{esc(node.boundary_id)}}@${{node.invocation_index}} (${{esc(node.boundary_kind)}})
+            <pre>${{esc(node.name)}}@${{node.invocation_index}} (${{esc(node.kind)}})
 envelope: ${{esc(node.envelope_id)}}
 parent:   ${{esc(node.parent_envelope_id || "—")}}</pre>
           </div>
           <div class="card">
             <h3>Input</h3>
-            <pre>${{esc(JSON.stringify(node.graph_state, null, 2) || JSON.stringify(node.messages, null, 2))}}</pre>
+            <pre>${{esc(JSON.stringify(node.arguments, null, 2) || JSON.stringify(node.messages, null, 2))}}</pre>
           </div>
           <div class="card">
             <h3>Output</h3>
             <pre class="${{resultClass}}">${{esc(
-              node.raw_response
-                ? JSON.stringify(node.raw_response, null, 2)
+              node.value
+                ? JSON.stringify(node.value, null, 2)
                 : node.tool_calls?.length
                   ? JSON.stringify(node.tool_calls, null, 2)
                   : node.completion || "—"
@@ -389,8 +388,7 @@ parent:   ${{esc(node.parent_envelope_id || "—")}}</pre>
           </div>
           <div class="card">
             <h3>Metadata</h3>
-            <pre>model: ${{esc(node.model_version)}}
-build: ${{esc(node.build_id)}}
+            <pre>model: ${{esc(node.model)}}
 finish: ${{esc(node.finish_reason || "—")}}</pre>
           </div>
         </div>
@@ -413,7 +411,7 @@ finish: ${{esc(node.finish_reason || "—")}}</pre>
         title.textContent = "Envelope";
         return;
       }}
-      title.textContent = `${{node.boundary_id}}@${{node.invocation_index}} — envelope`;
+      title.textContent = `${{node.name}}@${{node.invocation_index}} — envelope`;
       panel.innerHTML = activeTab === "full"
         ? renderFullEnvelope(node)
         : renderOverview(node);
@@ -458,8 +456,8 @@ finish: ${{esc(node.finish_reason || "—")}}</pre>
       el.innerHTML = `
         <div class="seq">#${{node.sequence}}</div>
         <div class="name">
-          ${{esc(node.boundary_id)}}@${{node.invocation_index}}
-          <span class="badge ${{esc(node.boundary_kind)}}">${{esc(node.boundary_kind)}}</span>
+          ${{esc(node.name)}}@${{node.invocation_index}}
+          <span class="badge ${{esc(node.kind)}}">${{esc(node.kind)}}</span>
         </div>
         <div class="headline">${{esc(node.headline)}}</div>
       `;

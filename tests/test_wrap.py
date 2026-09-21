@@ -59,11 +59,12 @@ def test_wrap_records_and_is_transparent():
     # Transparent: the caller gets the real response object.
     assert resp.choices[0].message.content == "hi from gpt-4o"
     env = session._recorded_envelopes[-1]
-    assert env.boundary_kind == "llm"
-    assert env.action_result.completion == "hi from gpt-4o"
-    assert env.metadata.model_version == "gpt-4o"
-    assert env.metadata.sampling_params.temperature == 0.2
-    assert env.action_result.token_usage == {"prompt_tokens": 3, "completion_tokens": 2}
+    assert env.kind == "llm"
+    assert env.output.llm.text == "hi from gpt-4o"
+    assert env.model == "gpt-4o"
+    assert env.attributes["gen_ai.request.temperature"] == 0.2
+    usage = env.output.llm.usage
+    assert (usage.input_tokens, usage.output_tokens) == (3, 2)
 
 
 @pytest.mark.layer1
@@ -105,7 +106,7 @@ def test_instrument_langgraph_wraps_every_node():
     assert nodes["tools"]({"messages": []})["ran"] is True
 
     assert len(session._recorded_envelopes) == 2
-    assert {e.node_id for e in session._recorded_envelopes} == {"agent", "tools"}
+    assert {e.name for e in session._recorded_envelopes} == {"agent", "tools"}
 
 
 @pytest.mark.layer1

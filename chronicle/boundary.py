@@ -23,24 +23,29 @@ from collections.abc import Callable, Mapping
 from typing import Any, TypeVar
 
 from chronicle.config import is_enabled
-from chronicle.envelope.schema import ActionResult, InputState
+from chronicle.envelope.genai import (
+    LLMRequest,
+    SamplingParams,
+    infer_method_schema,
+    model_from,
+    sampling_params_from,
+)
+from chronicle.envelope.schema import Input, Message, Output, Status
 from chronicle.session import (
     SessionMode,
     get_session,
-    model_version_from,
     peek_session,
-    result_to_action_result,
-    sampling_params_from,
+    result_to_output,
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
 
 
 def boundary(
-    boundary_id: str,
+    name: str,
     *,
     kind: str = "custom",
-    extract_input: Callable[..., InputState] | None = None,
+    extract_input: Callable[..., Input] | None = None,
     extract_result: Callable[[Any], Any] | None = None,
     extract_metadata: Callable[[Any], Mapping[str, Any]] | None = None,
 ) -> Callable[[F], F]:
@@ -58,7 +63,7 @@ def boundary(
     exception it raised, after the failure is recorded).
 
     The optional hooks feed the *envelope* only, never the return value:
-    - ``extract_input(*args, **kwargs) -> InputState`` overrides the default
+    - ``extract_input(*args, **kwargs) -> Input`` overrides the default
       signature-bound capture.
     - ``extract_result(result) -> value`` shapes what is recorded (the caller
       still receives the original ``result``).
@@ -70,7 +75,7 @@ def boundary(
     def decorator(fn: F) -> F:
         return _bind_boundary(  # type: ignore[return-value]
             fn,
-            boundary_id,
+            name,
             kind,
             extract_input=extract_input,
             extract_result=extract_result,
@@ -81,10 +86,10 @@ def boundary(
 
 
 def wrap_llm(
-    boundary_id: str,
+    name: str,
     dispatch: Callable[..., Any],
     *,
-    extract_input: Callable[..., InputState] | None = None,
+    extract_input: Callable[..., Input] | None = None,
     extract_result: Callable[[Any], Any] | None = None,
     extract_metadata: Callable[[Any], Mapping[str, Any]] | None = None,
 ) -> Callable[..., Any]:
@@ -103,7 +108,7 @@ def wrap_llm(
     """
     return _bind_boundary(
         dispatch,
-        boundary_id,
+        name,
         "llm",
         extract_input=extract_input,
         extract_result=extract_result,
@@ -113,10 +118,10 @@ def wrap_llm(
 
 def _bind_boundary(
     fn: Callable[..., Any],
-    boundary_id: str,
+    name: str,
     kind: str,
     *,
-    extract_input: Callable[..., InputState] | None,
+    extract_input: Callable[..., Input] | None,
     extract_result: Callable[[Any], Any] | None,
     extract_metadata: Callable[[Any], Mapping[str, Any]] | None,
 ) -> Callable[..., Any]:
@@ -127,6 +132,13 @@ def _bind_boundary(
         cached_sig: inspect.Signature | None = inspect.signature(fn)
     except (TypeError, ValueError):
         cached_sig = None
+    # A method boundary's schema is inferred once from the wrapped method (signature,
+    # return annotation, docstring). An LLM boundary has no method shape to infer.
+    static_attributes = (
+        None
+        if kind == "llm"
+        else infer_method_schema(fn, name).to_attributes()
+    )
 
     if inspect.iscoroutinefunction(fn):
 
@@ -141,14 +153,14 @@ def _bind_boundary(
                 session = get_session()
             if session.mode == SessionMode.LIVE:
                 return await _record_call_async(
-                    session, fn, boundary_id, kind, args, kwargs,
-                    extract_input, extract_result, extract_metadata, cached_sig,
+                    session, fn, name, kind, args, kwargs,
+                    extract_input, extract_result, extract_metadata, cached_sig, static_attributes,
                 )
-            invocation_index = session._replay_cursor.get(boundary_id, 0) + 1
-            if session.replay_plan.should_stub(boundary_id, invocation_index):
-                return session.stub_result(boundary_id, kind)
+            invocation_index = session._replay_cursor.get(name, 0) + 1
+            if session.replay_plan.should_stub(name, invocation_index):
+                return session.stub_result(name, kind)
             return await _live_cutpoint_call_async(
-                session, fn, boundary_id, kind, args, kwargs,
+                session, fn, name, kind, args, kwargs,
                 extract_input, invocation_index, cached_sig,
             )
 
@@ -165,14 +177,14 @@ def _bind_boundary(
             session = get_session()
         if session.mode == SessionMode.LIVE:
             return _record_call(
-                session, fn, boundary_id, kind, args, kwargs,
-                extract_input, extract_result, extract_metadata, cached_sig,
+                session, fn, name, kind, args, kwargs,
+                extract_input, extract_result, extract_metadata, cached_sig, static_attributes,
             )
-        invocation_index = session._replay_cursor.get(boundary_id, 0) + 1
-        if session.replay_plan.should_stub(boundary_id, invocation_index):
-            return session.stub_result(boundary_id, kind)
+        invocation_index = session._replay_cursor.get(name, 0) + 1
+        if session.replay_plan.should_stub(name, invocation_index):
+            return session.stub_result(name, kind)
         return _live_cutpoint_call(
-            session, fn, boundary_id, kind, args, kwargs,
+            session, fn, name, kind, args, kwargs,
             extract_input, invocation_index, cached_sig,
         )
 
@@ -183,7 +195,7 @@ def _bind_boundary(
 # Recording (LIVE mode)
 # --------------------------------------------------------------------------- #
 
-def _apply_on_enter(session, boundary_id, kind, input_state, kwargs) -> tuple[dict, bool]:
+def _apply_on_enter(session, name, kind, input, kwargs) -> tuple[dict, bool]:
     """Run ``on_enter`` if set. Returns ``(call_kwargs, entered)``.
 
     ``entered`` is True only when ``on_enter`` returned (so ``on_leave`` can pair).
@@ -193,23 +205,23 @@ def _apply_on_enter(session, boundary_id, kind, input_state, kwargs) -> tuple[di
     call_kwargs = dict(kwargs)
     if session.on_enter is None:
         return call_kwargs, False
-    patch = session.on_enter(boundary_id, kind, input_state)
+    patch = session.on_enter(name, kind, input)
     if patch:
         call_kwargs.update(dict(patch))
     return call_kwargs, True
 
 
-def _run_on_leave(session, boundary_id, kind, input_state, entered: bool) -> None:
+def _run_on_leave(session, name, kind, input, entered: bool) -> None:
     if entered and session.on_leave is not None:
-        session.on_leave(boundary_id, kind, input_state)
+        session.on_leave(name, kind, input)
 
 
 def _record_call(
-    session, fn, boundary_id, kind, args, kwargs,
-    extract_input, extract_result, extract_metadata, cached_sig=None,
+    session, fn, name, kind, args, kwargs,
+    extract_input, extract_result, extract_metadata, cached_sig=None, static_attributes=None,
 ):
-    input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
-    call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    input = _capture_input(fn, kind, args, kwargs, extract_input, cached_sig)
+    call_kwargs, entered = _apply_on_enter(session, name, kind, input, kwargs)
     # Open the span before the body so nested boundaries parent here (OTel Context).
     span_id, parent_id = session.start_span()
     try:
@@ -217,97 +229,105 @@ def _record_call(
             result = fn(*args, **call_kwargs)
         except Exception as exc:
             _record_failure(
-                session, boundary_id, kind, input_state, exc,
+                session, name, kind, input, exc, static_attributes,
                 envelope_id=span_id, parent_envelope_id=parent_id,
             )
             raise
         _record_success(
-            session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+            session, name, kind, input, result, extract_result, extract_metadata,
+            static_attributes,
             envelope_id=span_id, parent_envelope_id=parent_id,
         )
         return result
     finally:
         session.end_span()
-        _run_on_leave(session, boundary_id, kind, input_state, entered)
+        _run_on_leave(session, name, kind, input, entered)
 
 
 async def _record_call_async(
-    session, fn, boundary_id, kind, args, kwargs,
-    extract_input, extract_result, extract_metadata, cached_sig=None,
+    session, fn, name, kind, args, kwargs,
+    extract_input, extract_result, extract_metadata, cached_sig=None, static_attributes=None,
 ):
-    input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
-    call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    input = _capture_input(fn, kind, args, kwargs, extract_input, cached_sig)
+    call_kwargs, entered = _apply_on_enter(session, name, kind, input, kwargs)
     span_id, parent_id = session.start_span()
     try:
         try:
             result = await fn(*args, **call_kwargs)
         except Exception as exc:
             _record_failure(
-                session, boundary_id, kind, input_state, exc,
+                session, name, kind, input, exc, static_attributes,
                 envelope_id=span_id, parent_envelope_id=parent_id,
             )
             raise
         _record_success(
-            session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+            session, name, kind, input, result, extract_result, extract_metadata,
+            static_attributes,
             envelope_id=span_id, parent_envelope_id=parent_id,
         )
         return result
     finally:
         session.end_span()
-        _run_on_leave(session, boundary_id, kind, input_state, entered)
+        _run_on_leave(session, name, kind, input, entered)
 
 
 def _record_success(
-    session, boundary_id, kind, input_state, result, extract_result, extract_metadata,
+    session, name, kind, input, result, extract_result, extract_metadata,
+    static_attributes=None,
     *,
     envelope_id: str | None = None,
     parent_envelope_id: str | None = None,
 ):
     """Record the envelope, then notify observers. Never touches the return value."""
     recorded = extract_result(result) if extract_result else result
-    action_result = result_to_action_result(recorded, kind)
-    model_version, sampling_params = _call_metadata(recorded, kind, extract_metadata)
+    output = result_to_output(recorded, kind)
+    attributes = _call_attributes(recorded, kind, extract_metadata, static_attributes)
     session.record_envelope(
-        boundary_id, kind, input_state, action_result,
-        model_version=model_version, sampling_params=sampling_params,
+        name, kind, input, output,
         envelope_id=envelope_id, parent_envelope_id=parent_envelope_id,
+        attributes=attributes,
     )
     if session.on_crossing is not None:
-        session.on_crossing(boundary_id, kind, input_state, result)
+        session.on_crossing(name, kind, input, result)
 
 
 def _record_failure(
-    session, boundary_id, kind, input_state, exc,
+    session, name, kind, input, exc, static_attributes=None,
     *,
     envelope_id: str | None = None,
     parent_envelope_id: str | None = None,
 ):
     """Record a failed crossing so incidents that raise are still reproducible."""
-    action_result = ActionResult(
-        error=str(exc),
-        error_type=type(exc).__name__,
-        finish_reason="error",
-    )
     session.record_envelope(
-        boundary_id, kind, input_state, action_result,
+        name, kind, input, Output(),
         envelope_id=envelope_id, parent_envelope_id=parent_envelope_id,
+        status=Status(code="ERROR", message=str(exc)),
+        attributes={**(static_attributes or {}), "error.type": type(exc).__name__},
     )
 
 
-def _call_metadata(result, kind, extract_metadata):
-    """Capture the real model version and sampling params for this crossing.
+def _call_attributes(result, kind, extract_metadata, static_attributes):
+    """The GenAI attributes for this crossing: model and sampling params.
 
-    Model metadata only applies to ``llm`` boundaries, so tool and router results
-    are not scraped for a stray ``model`` key. An explicit extract_metadata hook
-    always wins and works for any kind. Returns ``(None, None)`` when nothing is
-    available, letting record_envelope fall back to the session default.
+    Model attributes only apply to ``llm`` boundaries, so tool and router results are
+    not scraped for a stray ``model`` key. An explicit extract_metadata hook always wins
+    and works for any kind. A method boundary contributes its own inferred schema
+    (``static_attributes``). Capture is best-effort and never raises.
     """
-    if extract_metadata is not None:
-        source = extract_metadata(result)
-        return model_version_from(source), sampling_params_from(source)
-    if kind == "llm":
-        return model_version_from(result), sampling_params_from(result)
-    return None, None
+    attributes = dict(static_attributes) if static_attributes else {}
+    try:
+        model = sampling = None
+        if extract_metadata is not None:
+            source = extract_metadata(result)
+            model, sampling = model_from(source), sampling_params_from(source)
+        elif kind == "llm":
+            model, sampling = model_from(result), sampling_params_from(result)
+        if model or sampling:
+            request = LLMRequest(model=model, sampling=sampling or SamplingParams())
+            attributes.update(request.to_attributes())
+    except Exception:
+        pass
+    return attributes
 
 
 # --------------------------------------------------------------------------- #
@@ -315,51 +335,51 @@ def _call_metadata(result, kind, extract_metadata):
 # --------------------------------------------------------------------------- #
 
 def _live_cutpoint_call(
-    session, fn, boundary_id, kind, args, kwargs, extract_input, invocation_index, cached_sig=None,
+    session, fn, name, kind, args, kwargs, extract_input, invocation_index, cached_sig=None,
 ):
-    input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
-    session.capture_live_input(boundary_id, invocation_index, input_state)
-    call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    input = _capture_input(fn, kind, args, kwargs, extract_input, cached_sig)
+    session.capture_live_input(name, invocation_index, input)
+    call_kwargs, entered = _apply_on_enter(session, name, kind, input, kwargs)
     try:
         try:
             result = fn(*args, **call_kwargs)
         except Exception:
-            _advance_cutpoint(session, boundary_id, invocation_index)
+            _advance_cutpoint(session, name, invocation_index)
             raise
-        _finish_cutpoint(session, boundary_id, kind, input_state, result, invocation_index)
+        _finish_cutpoint(session, name, kind, input, result, invocation_index)
         return result
     finally:
-        _run_on_leave(session, boundary_id, kind, input_state, entered)
+        _run_on_leave(session, name, kind, input, entered)
 
 
 async def _live_cutpoint_call_async(
-    session, fn, boundary_id, kind, args, kwargs, extract_input, invocation_index, cached_sig=None,
+    session, fn, name, kind, args, kwargs, extract_input, invocation_index, cached_sig=None,
 ):
-    input_state = _capture_input(fn, args, kwargs, extract_input, cached_sig)
-    session.capture_live_input(boundary_id, invocation_index, input_state)
-    call_kwargs, entered = _apply_on_enter(session, boundary_id, kind, input_state, kwargs)
+    input = _capture_input(fn, kind, args, kwargs, extract_input, cached_sig)
+    session.capture_live_input(name, invocation_index, input)
+    call_kwargs, entered = _apply_on_enter(session, name, kind, input, kwargs)
     try:
         try:
             result = await fn(*args, **call_kwargs)
         except Exception:
-            _advance_cutpoint(session, boundary_id, invocation_index)
+            _advance_cutpoint(session, name, invocation_index)
             raise
-        _finish_cutpoint(session, boundary_id, kind, input_state, result, invocation_index)
+        _finish_cutpoint(session, name, kind, input, result, invocation_index)
         return result
     finally:
-        _run_on_leave(session, boundary_id, kind, input_state, entered)
+        _run_on_leave(session, name, kind, input, entered)
 
 
-def _finish_cutpoint(session, boundary_id, kind, input_state, result, invocation_index):
-    session.capture_live_result(boundary_id, invocation_index, result)
-    _advance_cutpoint(session, boundary_id, invocation_index)
+def _finish_cutpoint(session, name, kind, input, result, invocation_index):
+    session.capture_live_result(name, invocation_index, result)
+    _advance_cutpoint(session, name, invocation_index)
     if session.on_crossing is not None:
-        session.on_crossing(boundary_id, kind, input_state, result)
+        session.on_crossing(name, kind, input, result)
 
 
-def _advance_cutpoint(session, boundary_id, invocation_index):
-    session.next_invocation(boundary_id)
-    session._replay_cursor[boundary_id] = invocation_index
+def _advance_cutpoint(session, name, invocation_index):
+    session.next_invocation(name)
+    session._replay_cursor[name] = invocation_index
 
 
 # --------------------------------------------------------------------------- #
@@ -369,31 +389,34 @@ def _advance_cutpoint(session, boundary_id, invocation_index):
 _IO_KEYS = ("messages", "system_prompt", "rag_chunks")
 
 
-def _capture_input(fn, args, kwargs, extract_input, cached_sig=None) -> InputState:
+def _capture_input(fn, kind, args, kwargs, extract_input, cached_sig=None) -> Input:
     if extract_input is not None:
         return extract_input(*args, **kwargs)
     # The default capture must never break the wrapped call.
     try:
-        return _bind_input_state(fn, args, kwargs, cached_sig)
+        return _bind_input(fn, kind, args, kwargs, cached_sig)
     except Exception:
-        return InputState(messages=[], graph_state={"args": _json_safe(list(args)), "kwargs": _json_safe(dict(kwargs))})
+        return Input(arguments={"args": _json_safe(list(args)), "kwargs": _json_safe(dict(kwargs))})
 
 
-def _bind_input_state(fn, args, kwargs, cached_sig=None) -> InputState:
-    graph_state = _bound_arguments(fn, args, kwargs, cached_sig)
-    source = _io_source(graph_state)
-    messages = source.get("messages") or []
-    if not messages and "user_message" in source:
-        messages = [{"role": "user", "content": source["user_message"]}]
-    # Messages must be dicts for the envelope schema; coerce each non-mapping row.
-    if messages:
-        messages = [m if isinstance(m, Mapping) else _json_safe(m) for m in messages]
-    return InputState.model_construct(
-        messages=messages,
-        system_prompt=source.get("system_prompt"),
-        rag_chunks=_coerce_rag_chunks(source.get("rag_chunks")),
-        graph_state=graph_state,
-    )
+def _bind_input(fn, kind, args, kwargs, cached_sig=None) -> Input:
+    arguments = _bound_arguments(fn, args, kwargs, cached_sig)
+    messages: list[Message] = []
+    if kind == "llm":
+        source = _io_source(arguments)
+        rows = source.get("messages") or []
+        if not rows and "user_message" in source:
+            rows = [{"role": "user", "content": source["user_message"]}]
+        messages = [_message(row) for row in rows]
+    return Input.model_construct(arguments=arguments, messages=messages)
+
+
+def _message(row: Any) -> Message:
+    """A typed chat message from a captured row; anything that is not a mapping is kept
+    as the content of an unknown-role message rather than dropped."""
+    if isinstance(row, Mapping):
+        return Message.model_construct(**{"role": "", "content": None, **dict(row)})
+    return Message.model_construct(role="unknown", content=_json_safe(row))
 
 
 def _bound_arguments(fn, args, kwargs, cached_sig=None) -> dict[str, Any]:
@@ -438,17 +461,6 @@ def _io_source(graph_state: dict[str, Any]) -> Mapping[str, Any]:
     if len(mappings) == 1 and any(k in mappings[0] for k in (*_IO_KEYS, "user_message")):
         return mappings[0]
     return graph_state
-
-
-def _coerce_rag_chunks(value: Any) -> list[Any]:
-    """Only pass through items that look like RagChunk (have chunk_id + content)."""
-    if (
-        isinstance(value, (list, tuple))
-        and value
-        and all(isinstance(c, Mapping) and "chunk_id" in c and "content" in c for c in value)
-    ):
-        return list(value)
-    return []
 
 
 def _json_safe(value: Any, _depth: int = 0) -> Any:
